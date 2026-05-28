@@ -1,5 +1,5 @@
 """
-FastAPI server — serves the ranked feed to the UI.
+FastAPI server - serves the ranked feed to the UI.
 
 Endpoints:
     GET  /api/health                 -> {"status": "ok", "source": "db"|"file"}
@@ -69,7 +69,7 @@ def _run_refresh(profile_path):
             _refresh.update(running=False, stage="Error", error=str(e),
                             finished_at=time.time())
 
-app = FastAPI(title="JobMatch API", version="1.0")
+app = FastAPI(title="Jobrolu API", version="1.0")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )

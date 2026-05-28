@@ -1,4 +1,4 @@
-# Running JobMatch
+# Running Jobrolu
 
 Everything runs locally with Python 3.9+. The only required key is an Anthropic
 API key (for ranking + draft emails). Apollo is optional.
@@ -25,25 +25,25 @@ The key resets when you open a new terminal, so re-`export` it each session
 ```bash
 python3 onboard.py my_resume.pdf my_profile.json    # pdf, docx, txt, or md
 ```
-Then open `my_profile.json` and fill anything the resume didn't state — especially
+Then open `my_profile.json` and fill anything the resume didn't state - especially
 `target_titles`, `work_authorization`, `requires_sponsorship`, and `preferences`
 (locations / remote). Better profile = sharper ranking.
 
-## 2. Rank — and the cost model
+## 2. Rank - and the cost model
 ```bash
 python3 main.py my_profile.json
 ```
 What happens:
 - Pulls ~40k roles from 401+ companies (parallel, under a minute).
 - Free heuristic scores ALL of them ($0).
-- Only the top `TOP_N` (default 100) go to the LLM — the only paid step.
+- Only the top `TOP_N` (default 100) go to the LLM - the only paid step.
 - The **cache** means re-runs only pay for genuinely NEW jobs.
 
 Cost: first run ~$1. Later runs usually a few cents (only new jobs are ranked).
 
 Knobs:
-- `TOP_N=0 python3 main.py my_profile.json`   — fully free, no LLM at all
-- `TOP_N=200 python3 main.py my_profile.json`  — rank more deeply (costs more)
+- `TOP_N=0 python3 main.py my_profile.json`   - fully free, no LLM at all
+- `TOP_N=200 python3 main.py my_profile.json`  - rank more deeply (costs more)
 
 Outputs: `ranked_jobs.csv` (open in Numbers/Excel) and `ranked_jobs.json`.
 
@@ -52,7 +52,7 @@ Outputs: `ranked_jobs.csv` (open in Numbers/Excel) and `ranked_jobs.json`.
 python3 make_ui.py        # reads ranked_jobs.json -> viewer.html
 open viewer.html
 ```
-Standalone HTML — no server, no npm. Filter by Strong / Possible / Skip. New
+Standalone HTML - no server, no npm. Filter by Strong / Possible / Skip. New
 postings show a **NEW** badge. Strong matches include a copy-ready outreach email
 and either the recruiter's email (if Apollo returned one) or a one-click
 "Find recruiter on LinkedIn" link.
@@ -66,12 +66,12 @@ uvicorn server:app --port 8000     # or: python3 -m uvicorn server:app --port 80
 # then open http://localhost:8000 in your browser
 ```
 The hosted site is a dark, single-screen experience:
-- `/` — **landing page** (`landing.html`): one screen, no scroll, explains the product.
-- `/start` — **onboarding** (`start.html`): build your profile two ways —
+- `/` - **landing page** (`landing.html`): one screen, no scroll, explains the product.
+- `/start` - **onboarding** (`start.html`): build your profile two ways -
   **upload a resume** (POSTs to `/api/onboard`, parsed by `onboard.py`) or
   **bring your own AI** (copy the prompt into ChatGPT/Claude, paste the JSON back,
   saved via `/api/profile`). Either way it lands you in the app.
-- `/app` — **live feed** (`app.html`): the ranked feed with a **Refresh jobs** button
+- `/app` - **live feed** (`app.html`): the ranked feed with a **Refresh jobs** button
   that re-runs the whole pipeline in the background while a progress bar tracks each
 flagged **NEW** and float to the top; previously-found roles stay put. Paste a
 recruiter's name to personalize the email; subject and body each have their own
@@ -88,11 +88,11 @@ python3 scan.py my_profile.json "https://link-to-a-job"     # or paste the JD te
 ```
 Runs the full rank + draft on a single role from anywhere (LinkedIn, Handshake…).
 
-## Contacts (Apollo) — honest note
+## Contacts (Apollo) - honest note
 Finding a recruiter's real email needs an Apollo key AND a paid Apollo plan;
 the free plan blocks the people-search API (you'll see a 403, handled gracefully).
 Without it, the LinkedIn fallback link does the same job for free. The draft email
-always generates regardless — it only needs your Anthropic key.
+always generates regardless - it only needs your Anthropic key.
 
 ## What the tiers mean (important)
 - **Strong** = the AI read the full posting and confirmed a strong fit. Trustworthy.

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎯 JobMatch
+# 🎯 Jobrolu
 
 ### Stop spraying applications. Find the roles that actually fit, and the human to email.
 
@@ -18,7 +18,7 @@
 
 Most job tools do one of two things: **autofill** the same form a hundred times, or dump a feed of loosely-matched listings on you. Neither tells you *which roles are actually worth your time* or *who to talk to*. That's volume, not strategy.
 
-**JobMatch is different.** It runs the job search the way it actually works:
+**Jobrolu is different.** It runs the job search the way it actually works:
 
 > **Aggregate** from the cleanest sources → **rank** every role honestly against *your* real profile → **hand you the recruiter** to email, with a personalized draft.
 
@@ -224,7 +224,7 @@ jobmatch/
 
 **v3 - launch.** Once coverage is wide, ship it as a real product:
 
-4. **Pick a final name** (`JobMatch` is taken - see `ROADMAP.md` for the shortlist).
+4. **Name + domain: done.** Live at **jobrolu.com**.
 5. **Buy the domain.**
 6. **Build the landing page + hosted version** (accounts, the viewer served from the web instead of a local file).
 

@@ -1,5 +1,5 @@
 """
-make_ui.py — turn ranked_jobs.json into a standalone HTML feed you can just open.
+make_ui.py - turn ranked_jobs.json into a standalone HTML feed you can just open.
 
 No server, no npm, no build step. It reads your ranked jobs, bakes the top ones
 into a single self-contained HTML file, and you double-click it.
@@ -47,7 +47,7 @@ def shape(jobs):
 
 HTML = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>JobMatch — your ranked feed</title>
+<title>Jobrolu - your ranked feed</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -114,13 +114,13 @@ function Outreach({job}){
   const full = (subject?("Subject: "+subject+"\n\n"):"")+body;
 
   return (<div style={{marginTop:6,marginBottom:4}}>
-    <Label>Step 1 — find the recruiter</Label>
+    <Label>Step 1 - find the recruiter</Label>
     <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:6}}>
       {job.linkedin_search && <a className="btn" href={job.linkedin_search} target="_blank" rel="noreferrer" style={{textDecoration:"none",fontFamily:FU,fontSize:13,fontWeight:600,padding:"9px 14px",borderRadius:9,border:"1px solid #cfcabc",color:"#1a1a17"}}>Find recruiter on LinkedIn →</a>}
       <input value={name} onChange={e=>setName(e.target.value)} placeholder="paste recruiter's name"
         style={{flex:1,minWidth:160,fontFamily:FU,fontSize:13.5,padding:"9px 12px",borderRadius:9,border:"1px solid #cfcabc",background:"#fffdf8",color:"#1a1a17",outline:"none"}}/>
     </div>
-    <p style={{fontFamily:FU,fontSize:12,color:"#9a9486",margin:"0 0 16px",lineHeight:1.5}}>Open LinkedIn, grab the recruiter's name, paste it above — the email below updates instantly.</p>
+    <p style={{fontFamily:FU,fontSize:12,color:"#9a9486",margin:"0 0 16px",lineHeight:1.5}}>Open LinkedIn, grab the recruiter's name, paste it above - the email below updates instantly.</p>
 
     {job.contacts.length>0 && (
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
@@ -134,7 +134,7 @@ function Outreach({job}){
     )}
 
     {hasDraft && <>
-      <Label>Step 2 — your email, ready to send</Label>
+      <Label>Step 2 - your email, ready to send</Label>
       {subject && <div style={{position:"relative",border:"1px solid #ece8dd",borderRadius:9,background:"#fffdf8",padding:"10px 14px",paddingRight:44,marginBottom:8}}>
         <IconCopy text={subject}/>
         <div style={{fontFamily:FU,fontSize:13.5,color:"#2a2823"}}><span style={{color:"#a39d8e",fontWeight:600}}>Subject: </span>{subject}</div>
@@ -159,7 +159,7 @@ function App(){
     <header style={{borderBottom:"1px solid #e4e0d6",position:"sticky",top:0,background:"#f6f4ef",zIndex:10}}>
       <div style={{maxWidth:1180,margin:"0 auto",padding:"20px 28px",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
         <div style={{display:"flex",alignItems:"baseline",gap:14}}>
-          <span style={{fontFamily:FD,fontSize:26,fontWeight:600,letterSpacing:"-.02em"}}>JobMatch</span>
+          <span style={{fontFamily:FD,fontSize:26,fontWeight:600,letterSpacing:"-.02em"}}>Jobrolu</span>
           <span style={{fontFamily:FU,fontSize:12.5,color:"#8a8578"}}>ranked for <strong style={{color:"#3a382f"}}>{window.NAME}</strong> · Software Engineering</span>
         </div>
         <span style={{fontFamily:FU,fontSize:12,color:"#9a9486"}}>{counts.all} roles · updated today</span>
@@ -180,7 +180,7 @@ function App(){
               <div style={{fontFamily:FD,fontSize:18,fontWeight:500,margin:"5px 0 7px",lineHeight:1.18}}>{j.title}</div>
               <div style={{display:"flex",alignItems:"center",gap:10,fontFamily:FU,fontSize:12.5,color:"#8a8578"}}>
                 <span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:6,height:6,borderRadius:999,background:t.dot}}/>{t.label}</span>
-                <span>·</span><span>{j.location||"—"}</span>
+                <span>·</span><span>{j.location||"-"}</span>
               </div>
             </div>);})}
         </div>
