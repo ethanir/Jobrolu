@@ -86,6 +86,7 @@ def _shape(job):
         "company": job.get("company", ""),
         "title": job.get("title", ""),
         "location": job.get("location", ""),
+        "url": job.get("url", ""),
         "posted": job.get("posted", ""),
         "source": job.get("source", "") or job.get("ats", ""),
         "tier": job.get("tier") or fit.get("tier") or "possible",
