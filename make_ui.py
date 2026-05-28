@@ -32,6 +32,7 @@ def shape(jobs):
             "reasons": j.get("reasons") or fit.get("reasons") or [],
             "matched": j.get("matched") or fit.get("matched_skills") or [],
             "missing": j.get("missing") or fit.get("missing_skills") or [],
+            "is_new": bool(j.get("is_new")),
         })
     return out
 
@@ -94,7 +95,7 @@ function App(){
           {list.map((j,i)=>{const t=TIERS[j.tier]||TIERS.possible;const a=job&&list[sel]===j;return(
             <div key={i} className="row" onClick={()=>setSel(i)} style={{padding:"16px 18px",borderBottom:i<list.length-1?"1px solid #ece8dd":"none",borderLeft:a?"3px solid #1a1a17":"3px solid transparent",background:a?"#fffdf8":"transparent"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:10}}>
-                <span style={{fontFamily:FU,fontSize:12.5,fontWeight:600,color:"#6f6a5d",textTransform:"uppercase",letterSpacing:".04em"}}>{j.company}</span>
+                <span style={{fontFamily:FU,fontSize:12.5,fontWeight:600,color:"#6f6a5d",textTransform:"uppercase",letterSpacing:".04em"}}>{j.company}{j.is_new && <span style={{marginLeft:8,fontSize:10,fontWeight:700,color:"#176844",background:"#eaf6ef",border:"1px solid #cfe7d8",padding:"1px 6px",borderRadius:999,letterSpacing:".02em"}}>NEW</span>}</span>
                 <span style={{fontFamily:FU,fontSize:12,fontWeight:600,color:t.text,background:t.bg,padding:"2px 9px",borderRadius:999}}>{j.score}</span>
               </div>
               <div style={{fontFamily:FD,fontSize:18,fontWeight:500,margin:"5px 0 7px",lineHeight:1.18}}>{j.title}</div>
