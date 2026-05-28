@@ -83,20 +83,27 @@ even bigger public lists*.
 **Honest coverage limits (what we can and can't cleanly scan):**
 - ✅ **Greenhouse / Lever / Ashby / SmartRecruiters / Recruitee / Workable** — clean public
   JSON, fully supported, expandable via seeding. This is where the easy wins are.
-- ⚠️ **Workday / iCIMS / Taleo** — large employers live here, but they have no clean public
-  API (tenant-specific endpoints, anti-bot measures). Real value, real difficulty; a
-  separate careful project, not a quick add.
+- ✅ **Workday** — now supported via the CXS public endpoint (`from_workday`, seed with
+  `seed_workday.py`). Per-company tenant/site/server, no auth. Dead boards skip quietly.
+- ✅ **Adzuna aggregator** — keyword index across many boards (`from_adzuna`), free API
+  key, deduped against ATS pulls. Whole new source type beyond company-by-company.
+- ⚠️ **iCIMS / Taleo** — large employers, but no clean public API (anti-bot). Still hard.
 - ❌ **LinkedIn / Indeed** — actively block scraping and forbid it in their ToS (account-ban
   risk). Deliberately out of scope; the right way to use those is applying directly, by hand.
 
 **Why first:** every company added is more real roles entering the funnel, with zero new code paths — it reuses the existing connectors. This alone meaningfully widens the net.
-**Interview value:** "scans N thousand companies" is a far stronger line than "~400."
+**Interview value:** "scans N thousand companies across 7 ATS platforms + an aggregator" is a far stronger line than "~400."
 
-### 2. Add a Workday connector — *biggest missing platform*
-A large share of mid-to-large employers post **only** on Workday, so they're currently invisible. Workday isn't a clean JSON API like the existing six, so this is more work — but it's the single largest coverage gap among ATS platforms.
+### 2. Workday connector — ✅ SHIPPED
+`from_workday` hits the public Workday CXS endpoint (`/wday/cxs/{tenant}/{site}/jobs`,
+POST, offset pagination, no auth). Tokens are `tenant/site/wdN`. Seed a curated set with
+`python3 seed_workday.py`, or add any company from its careers URL. This opens up the
+large-enterprise employers that were previously invisible.
 
-### 3. Pull from a job-aggregator feed — *path to "everything"*
-Invert the model: instead of enumerating every company, query one large pre-built index, then dedupe against the ATS pulls. This is the real route to "scan everywhere," and a different enough architecture that it comes last.
+### 3. Job-aggregator feed — ✅ SHIPPED (Adzuna)
+`from_adzuna` queries Adzuna's keyword index across many boards at once, then dedupes
+(by company+title and by url) against the ATS pulls. Needs free `ADZUNA_APP_ID` /
+`ADZUNA_APP_KEY` env vars; runs only when they're set, so the pipeline works without it.
 
 > **Scope honesty:** v1 already produces results. v2 is genuine improvement *and* a strong portfolio story, but it is optimization of a channel that already works. It is not a prerequisite for job-searching — direct LinkedIn/Handshake applications and referrals (e.g. the Amazon referral) remain higher-yield channels and should run in parallel, not be replaced by this tool.
 
@@ -130,7 +137,7 @@ Invert the model: instead of enumerating every company, query one large pre-buil
 ## Definition of done
 
 - [~] Registry expanded to several thousand companies (v2.1) — `seed.py` built; feed it bigger lists
-- [ ] Workday connector live (v2.2)
+- [x] Workday connector live (v2.2)
 - [ ] Aggregator feed integrated + deduped (v2.3)
 - [ ] Final name chosen
 - [ ] Domain purchased

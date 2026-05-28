@@ -151,6 +151,11 @@ def run(profile_path="profile.example.json", progress=None, top_n=None):
     if tn > 0:
         need_llm = [j for j in top if j["_id"] not in cache["ranked"]]
         cached = [j for j in top if j["_id"] in cache["ranked"]]
+        if need_llm:
+            import hydrate
+            filled = hydrate.hydrate(need_llm)
+            emit("Fetching full descriptions", 72,
+                 f"{filled} hydrated of {len(need_llm)}")
         emit("Ranking fit (AI)", 74, f"{len(need_llm)} new, {len(cached)} cached")
         if need_llm:
             rank.run(need_llm, profile)               # the only paid step

@@ -12,6 +12,7 @@ down, but for big runs you can batch multiple jobs into one prompt to save token
 """
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from prompts import FIT_RANKING, PROFILE_SCHEMA  # noqa: F401
 
 MODEL = "claude-sonnet-4-6"  # swap as needed
@@ -52,10 +53,16 @@ def run(jobs, profile):
     client = anthropic.Anthropic(api_key=key)
     profile_json = json.dumps(profile, indent=2)
 
-    for i, j in enumerate(jobs, 1):
+    print(f"  ranking {len(jobs)} jobs in parallel (10 workers)...")
+    done = [0]
+    def _work(j):
         j["fit"] = _rank_one(client, profile_json, j)
-        if i % 10 == 0:
-            print(f"  ranked {i}/{len(jobs)}")
+        done[0] += 1
+        if done[0] % 25 == 0:
+            print(f"    {done[0]}/{len(jobs)} ranked")
+        return j
+    with ThreadPoolExecutor(max_workers=30) as ex:
+        list(ex.map(_work, jobs))
 
     tier_rank = {"strong": 0, "possible": 1, "skip": 2, "unknown": 3}
     jobs.sort(key=lambda j: (

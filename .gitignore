@@ -1,8 +1,30 @@
+# Python
 __pycache__/
 *.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Secrets - NEVER commit these
 .env
+*.env
+*.env.backup
+.zshrc
+*secret*
+*credentials*
+*_key.txt
+apikey*
+api_key*
+
+# Generated / personal data (rebuilt on each run)
 ranked_jobs.json
 ranked_jobs.csv
+ranked_cache.json
 my_profile.json
-.venv/
-node_modules/
+ai_response.json
+rank_me.txt
+
+# OS
+.DS_Store

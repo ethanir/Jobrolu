@@ -22,6 +22,21 @@ INTERN_RX = re.compile(r"\bintern\b|internship|\bco.?op\b", re.I)
 SWE_RX = re.compile(
     r"software engineer|software developer|\bsde\b|\bswe\b|full.?stack|"
     r"back.?end|front.?end|web developer|application engineer", re.I)
+# Hard-ish disqualifiers for a new grad: clearance, heavy experience requirements.
+CLEARANCE_RX = re.compile(
+    r"security clearance|ts/sci|\bts\b/\bsci\b|top secret|polygraph|"
+    r"active clearance|government clearance|dod clearance", re.I)
+SENIOR_YEARS_RX = re.compile(r"(\d{1,2})\+?\s*years", re.I)
+
+
+def _word_in(skill, blob):
+    """True only if skill appears as a whole token, not a substring.
+
+    Fixes the bug where 'c' matched 'clearance' and 'go' matched inside other
+    words, inflating scores with skills the job doesn't actually want.
+    """
+    return re.search(r"(?<![a-z0-9+#])" + re.escape(skill) + r"(?![a-z0-9+#])",
+                     blob) is not None
 
 
 def _flat_skills(profile):
@@ -43,13 +58,12 @@ def heuristic_score(job, skills, titles, locs, wants_intern=False):
     """
     title = job.get("title", "") or ""
     tl = title.lower()
-    blob = (title + " " + (job.get("description", "") or ""))[:6000].lower()
+    blob = (title + " " + (job.get("description", "") or ""))[:12000].lower()
 
     score = 0
 
-    # --- skill overlap: still matters, but with diminishing returns so 5 common
-    #     skills doesn't flatten every job to the same number ---
-    matched = [s for s in skills if s and s in blob]
+    # --- skill overlap: whole-word match only (no more 'c' matching 'clearance') ---
+    matched = [s for s in skills if s and _word_in(s, blob)]
     n = len(matched)
     # first few matched skills are worth more; saturates so it can't dominate
     score += min(n, 3) * 6 + max(0, min(n - 3, 6)) * 2     # up to +30
@@ -72,6 +86,20 @@ def heuristic_score(job, skills, titles, locs, wants_intern=False):
     # --- intern handling: only reward intern roles if the user wants them ---
     if INTERN_RX.search(title):
         score += 16 if wants_intern else -20
+
+    # --- hard-ish disqualifiers a new grad can't satisfy ---
+    if CLEARANCE_RX.search(blob):
+        score -= 60      # security clearance / TS-SCI / poly: effectively a non-fit
+    ym = SENIOR_YEARS_RX.search(blob)
+    if ym:
+        try:
+            yrs = int(ym.group(1))
+            if yrs >= 8:
+                score -= 40
+            elif yrs >= 5:
+                score -= 25
+        except ValueError:
+            pass
 
     # --- location fit ---
     loc = (job.get("location", "") or "").lower()
@@ -111,18 +139,22 @@ def rank_free(jobs, profile):
 def heuristic_fit(job):
     """Turn the free score into a fit dict (so un-LLM'd jobs still display).
 
-    Thresholds match the sharper scoring scale in heuristic_score: a real new-grad
-    SWE match (title + new-grad + skills + location) lands well above 70, while
-    skill-only look-alikes stay in 'possible'.
+    IMPORTANT: the heuristic NEVER awards 'strong'. It only reads keywords, so it
+    can't be trusted to confirm a strong fit (it can't see disqualifiers like a
+    required security clearance). The best a keyword-only job can show is
+    'possible' -- only the LLM, which reads the full posting, can mark 'strong'.
+    That keeps every green 'Strong fit' meaningful.
     """
     s = job.get("_score", 0)
-    tier = "strong" if s >= 80 else "possible" if s >= 40 else "skip"
+    # capped at 'possible' on purpose; 'strong' is reserved for LLM-verified jobs
+    tier = "possible" if s >= 40 else "skip"
     matched = job.get("_matched", [])
     return {
         "score": max(0, min(100, s)),
         "tier": tier,
-        "reasons": [f"Heuristic match: {len(matched)} of your skills appear in this role"
-                    + (f" ({', '.join(matched[:5])})" if matched else "")],
+        "reasons": [f"Keyword pre-match: {len(matched)} of your skills appear in the text"
+                    + (f" ({', '.join(matched[:5])})" if matched else "")
+                    + ". Not yet verified by the AI on the full description."],
         "hard_disqualifiers": [],
         "matched_skills": matched,
         "missing_skills": [],
