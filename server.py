@@ -159,6 +159,11 @@ def _from_db(user_id, tier):
         return None
     try:
         rows = db.fetch_ranked(conn, user_id)
+        if not rows:
+            # Postgres is on but this user has no rankings yet (typical right
+            # after Postgres is first wired up). Fall back to the shared file
+            # feed instead of showing an empty page.
+            return None
         out = []
         for r in rows:
             out.append(_shape({
