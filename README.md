@@ -109,7 +109,7 @@ Only the AI fit-rank step costs money. Everything else (sourcing, prefilter, heu
 | 800 (deep sweep) | top 800 | ~$8 | ~$0 |
 | 0 + web-AI export | top ~30-40, free web chat | **$0** | $0 |
 
-In the app, the **scan-depth slider** sets this per run and shows the estimated cost, time, and likely matches live before you commit. The server hard-caps any single run at 2000 jobs as a backstop, and an Anthropic spend cap is the final ceiling.
+In the app, the **scan-depth slider** sets this per run and shows a live, cache-aware estimate of cost, time, and likely matches before you commit. Because already-scanned jobs are cached and free, the estimate counts only depth beyond what has already been read, so a repeat at the same depth reads as **~$0**. You pay only when you drag the slider deeper than you have scanned before. The server hard-caps any single run at 2000 jobs as a backstop, and an Anthropic spend cap is the final ceiling.
 
 The **cache** (`jobcache.py`) is what keeps it cheap: each posting has a stable id, and once the AI ranks it, the result is reused forever. Re-runs only pay for jobs that are genuinely new since last time.
 

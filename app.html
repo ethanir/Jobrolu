@@ -177,7 +177,7 @@
       <input class="depth-slider" type="range" id="depthSlider" min="0" max="1000" step="20" value="800" oninput="updateDepth()"/>
       <span class="depth-val" id="depthVal">800</span>
     </div>
-    <div class="depth-note">The free scorer rates every role. This sets how many of the top roles the AI reads in full. Deeper costs more and finds a few more, with a steep drop-off.</div>
+    <div class="depth-note">The free scorer rates every role. This sets how many of the top roles the AI reads in full. Jobs already scanned are cached and free, so you only pay for depth beyond what's been read. Deeper finds a few more, with a steep drop-off.</div>
   </div></div></div>
   <div class="wrap"><div class="prog" id="prog"><div class="prog-in">
     <div class="prog-row"><span class="prog-stage" id="progStage">Starting…</span><span class="prog-detail" id="progDetail"></span></div>
@@ -213,7 +213,7 @@
 
 <script>
 const API = location.origin.startsWith("file") ? "http://localhost:8000" : "";
-let JOBS = [], FILTER = "strong", SELECTED = null, POLL = null, UNLOCKED = false;
+let JOBS = [], FILTER = "strong", SELECTED = null, POLL = null, UNLOCKED = false, RANKED_CACHE = 0;
 
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),1800);}
 function copy(text){navigator.clipboard?.writeText(text);return true;}
@@ -258,10 +258,20 @@ function updateDepth(){
   sl.style.background="linear-gradient(90deg,var(--green) "+pct+"%,#222a34 "+pct+"%)";
   const est=document.getElementById("depthEst");
   if(n===0){ est.textContent="Free · heuristic only"; return; }
-  const cost="$"+(n*0.01).toFixed(2);
-  const sec=Math.round(n*0.5);
+  const m=Math.round(depthMatches(n));
+  const fresh=Math.max(0, n - RANKED_CACHE);
+  if(fresh===0){ est.textContent="Cached · ~$0 · ~"+m+" strong"; return; }
+  const cost="$"+(fresh*0.01).toFixed(2);
+  const sec=Math.round(fresh*0.5);
   const t=sec<90?("~"+sec+"s"):("~"+Math.round(sec/60)+" min");
-  est.textContent="~"+cost+" · "+t+" · ~"+Math.round(depthMatches(n))+" strong";
+  est.textContent="~"+cost+" · "+t+" · ~"+m+" strong";
+}
+async function fetchCacheStats(){
+  try{
+    const s=await fetch(API+"/api/cache/stats").then(r=>r.json());
+    RANKED_CACHE = (s&&typeof s.ranked==="number") ? s.ranked : 0;
+  }catch(e){ RANKED_CACHE = 0; }
+  updateDepth();
 }
 function openUnlock(){
   if(UNLOCKED) return;
@@ -420,10 +430,12 @@ async function pollStatus(){
     if(s.result){toast(`+${s.result.new} new · ${s.result.strong} strong`);}
     setTimeout(()=>document.getElementById("prog").classList.remove("open"),1400);
     await loadJobs();
+    fetchCacheStats();
   }
 }
 
 updateDepth();
+fetchCacheStats();
 checkUnlock();
 loadJobs();
 </script>

@@ -35,6 +35,7 @@ from pydantic import BaseModel
 import db
 import scan as scan_mod
 import main as pipeline
+import jobcache
 
 
 class ScanInput(BaseModel):
@@ -280,6 +281,19 @@ def refresh_status():
     """Live progress of the running (or last) refresh, for the UI progress bar."""
     with _refresh_lock:
         return dict(_refresh)
+
+
+@app.get("/api/cache/stats")
+def cache_stats():
+    """How many jobs the AI has already ranked (cached). The UI uses this to show
+    the real marginal cost of a refresh: cached jobs are free, so only depth beyond
+    what's already scanned actually costs money."""
+    try:
+        cache = jobcache.load()
+        return {"ranked": len(cache.get("ranked", {})),
+                "seen": len(cache.get("seen", {}))}
+    except Exception:
+        return {"ranked": 0, "seen": 0}
 
 
 # ---------------------------------------------------------------- web UI
