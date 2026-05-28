@@ -41,8 +41,9 @@ The whole design exists to keep cost near zero while still using AI where it mat
   FREE HEURISTIC SCORE        score.py rates EVERY surviving job by keyword/title/
         |                     new-grad/seniority/location. Ranks them best-first.         $0
         v
-  AI FIT-RANK (top N only)    rank.py sends only the top N (default 100) to the LLM,
-        |                     which reads the full posting and scores the real fit.    ~$1 first run
+  AI FIT-RANK (top N only)    rank.py sends only the top N to the LLM, which reads the
+        |                     full posting and scores the real fit. N is set live by the
+        |                     in-app scan-depth slider (default 100).               ~$1+ per run
         v
   CACHE                       jobcache.py remembers every AI ranking, so re-runs only
         |                     pay for genuinely new jobs.                          near $0 after
@@ -89,7 +90,11 @@ So a green `88` with "AI verified" is a real judgment. A grey `~78` with "Estima
 
 ### Turning estimates into verified scores
 
-Only the top N jobs get AI-read. With thousands of roles, a genuinely good job can sit just outside that cutoff and stay an estimate. To verify more of them, raise `TOP_N` (this costs more, see below), or rank for free using the bring-your-own-AI flow (`export_rank.py` / `import_rank.py`).
+Only the top N jobs get AI-read, and at free-scoring time most jobs are ranked on their **title** alone, since full descriptions are only fetched for the jobs about to be AI-read. So a genuinely good role with a plain or unusual title can sit just outside the cutoff and stay an estimate. Three ways to verify deeper:
+
+- **The scan-depth slider** (in the app, owner-only). After unlocking, a slider sets how many top roles the AI reads on the next refresh, and shows a live estimate of the cost, time, and likely strong matches before you run. This is the main lever, and it is exactly what reaches the good roles a title-only score under-rated.
+- **`TOP_N`** for command-line runs (see the cost model below).
+- **Bring-your-own-AI** (`export_rank.py` / `import_rank.py`), which ranks your batch for **$0** in a free web chat.
 
 ---
 
@@ -97,11 +102,14 @@ Only the top N jobs get AI-read. With thousands of roles, a genuinely good job c
 
 Only the AI fit-rank step costs money. Everything else (sourcing, prefilter, heuristic scoring, hydration, the LinkedIn recruiter search) is plain HTTP and free.
 
-| `TOP_N` | Jobs the AI reads | First run | Re-run (cache) |
+| Scan depth | Jobs the AI reads | First run | Re-run (cache) |
 |---|---|---|---|
 | 100 (default) | top 100 | ~$1 | ~$0 |
-| 300 (big registry) | top 300 | ~$2-3 | ~$0 |
+| 300 | top 300 | ~$2-3 | ~$0 |
+| 800 (deep sweep) | top 800 | ~$8 | ~$0 |
 | 0 + web-AI export | top ~30-40, free web chat | **$0** | $0 |
+
+In the app, the **scan-depth slider** sets this per run and shows the estimated cost, time, and likely matches live before you commit. The server hard-caps any single run at 2000 jobs as a backstop, and an Anthropic spend cap is the final ceiling.
 
 The **cache** (`jobcache.py`) is what keeps it cheap: each posting has a stable id, and once the AI ranks it, the result is reused forever. Re-runs only pay for jobs that are genuinely new since last time.
 
