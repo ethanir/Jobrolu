@@ -10,7 +10,7 @@ pip install --user -r requirements.txt
 
 ## The everyday loop
 ```bash
-cd jobmatch
+cd jobrolu
 export ANTHROPIC_API_KEY=sk-...        # required for ranking + draft emails
 export APOLLO_API_KEY=...              # optional: recruiter contact lookup
 

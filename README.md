@@ -118,8 +118,8 @@ You stay in control of the final send. No spammy auto-apply, no getting your Lin
 ## ⚡ Quickstart
 
 ```bash
-git clone https://github.com/ethanir/jobmatch.git
-cd jobmatch
+git clone https://github.com/ethanir/Jobrolu.git
+cd jobrolu
 pip install --user -r requirements.txt
 
 # 1) build your profile from your resume (needs ANTHROPIC_API_KEY)
@@ -169,7 +169,7 @@ For a large registry (e.g. 475 companies / ~50k jobs), `TOP_N=100` is too shallo
 ## 📁 Project structure
 
 ```
-jobmatch/
+jobrolu/
 ├── main.py                 # orchestrator: source -> filter -> funnel -> rank -> cache -> enrich -> output
 ├── onboard.py              # resume (PDF/DOCX/TXT) -> structured profile via LLM
 ├── sources.py              # 7 ATS connectors + Adzuna aggregator + curated lists (parallel)
