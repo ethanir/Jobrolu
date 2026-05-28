@@ -21,7 +21,7 @@ import os
 import threading
 import time
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -251,3 +251,53 @@ def app_ui():
         if os.path.exists(path):
             return FileResponse(path)
     raise HTTPException(status_code=404, detail="no app UI found (build app.html)")
+
+
+@app.get("/start")
+def start_ui():
+    """Serve the onboarding page (build your profile)."""
+    if os.path.exists("start.html"):
+        return FileResponse("start.html")
+    raise HTTPException(status_code=404, detail="no start.html found")
+
+
+@app.post("/api/profile")
+async def save_profile(request: Request):
+    """Save a profile JSON (from the bring-your-own-AI flow) to disk."""
+    try:
+        data = await request.json()
+    except Exception:
+        return {"ok": False, "error": "Body was not valid JSON."}
+    if not isinstance(data, dict):
+        return {"ok": False, "error": "Expected a single JSON object."}
+    path = os.environ.get("PROFILE_PATH", "my_profile.json")
+    try:
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        return {"ok": False, "error": f"Could not write profile: {e}"}
+    return {"ok": True, "saved": path, "name": data.get("name")}
+
+
+@app.post("/api/onboard")
+async def onboard_resume(file: UploadFile = File(...)):
+    """Accept a resume upload, parse it into a profile, save it."""
+    import tempfile
+    suffix = os.path.splitext(file.filename or "")[1].lower() or ".txt"
+    if suffix not in (".pdf", ".docx", ".txt", ".md"):
+        return {"ok": False, "error": "Use a PDF, DOCX, or TXT resume."}
+    try:
+        import onboard as onboard_mod
+    except Exception as e:
+        return {"ok": False, "error": f"Onboarding unavailable: {e}"}
+    try:
+        contents = await file.read()
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(contents)
+            tmp_path = tmp.name
+        path = os.environ.get("PROFILE_PATH", "my_profile.json")
+        profile = onboard_mod.onboard(tmp_path, path)
+        os.unlink(tmp_path)
+        return {"ok": True, "saved": path, "name": profile.get("name")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}

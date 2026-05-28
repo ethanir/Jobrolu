@@ -60,17 +60,19 @@ and either the recruiter's email (if Apollo returned one) or a one-click
 Re-run `make_ui.py` only after a fresh `main.py` run. To just look again at the
 current feed, `open viewer.html` is enough.
 
-## 4. Or: the hosted site (landing page + live app)
+## 4. Or: the hosted site (landing → onboarding → live app)
 ```bash
 uvicorn server:app --port 8000     # or: python3 -m uvicorn server:app --port 8000
 # then open http://localhost:8000 in your browser
 ```
-- `http://localhost:8000/` serves the **landing page** (`landing.html`): explains the
-  product, the funnel, the sources, the cost. One click on "Open my ranked feed"
-  takes the user to the app.
-- `http://localhost:8000/app` serves the **live feed** (`app.html`): the same
-  editorial feed, but with a **Refresh jobs** button that re-runs the whole pipeline
-  in the background while a progress bar tracks each stage. New postings appear
+The hosted site is a dark, single-screen experience:
+- `/` — **landing page** (`landing.html`): one screen, no scroll, explains the product.
+- `/start` — **onboarding** (`start.html`): build your profile two ways —
+  **upload a resume** (POSTs to `/api/onboard`, parsed by `onboard.py`) or
+  **bring your own AI** (copy the prompt into ChatGPT/Claude, paste the JSON back,
+  saved via `/api/profile`). Either way it lands you in the app.
+- `/app` — **live feed** (`app.html`): the ranked feed with a **Refresh jobs** button
+  that re-runs the whole pipeline in the background while a progress bar tracks each
 flagged **NEW** and float to the top; previously-found roles stay put. Paste a
 recruiter's name to personalize the email; subject and body each have their own
 copy button. This is the version v3 deploys to the web.

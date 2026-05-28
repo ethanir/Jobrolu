@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>JobMatch · build your profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1015; --card:#161b23; --card2:#1b212b; --ink:#f2f5f3; --ink2:#c3cbd2; --mut:#7e8a96;
+    --line:#262e39; --line2:#2e3742; --acc:#4fe39b; --acc2:#33c97f; --accdim:#16271e; --accln:#244e38;
+    --accglow:rgba(79,227,155,.16); --fd:'Fredoka',sans-serif; --fb:'Nunito',sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--fb);-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  body{background:radial-gradient(820px 520px at 84% -6%,rgba(79,227,155,.09) 0%,transparent 60%),radial-gradient(700px 600px at 8% 108%,rgba(79,227,155,.06) 0%,transparent 58%),var(--bg);min-height:100vh}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:22px 38px}
+  .brand{font-family:var(--fd);font-size:24px;font-weight:600;display:flex;align-items:center;gap:10px}
+  .brand .mk{width:13px;height:13px;border-radius:99px;background:var(--acc);box-shadow:0 0 14px var(--acc)}
+  .nav-r a{font-size:15px;font-weight:600;color:var(--ink2)}
+  .nav-r a:hover{color:var(--acc)}
+  .wrap{max-width:920px;margin:0 auto;padding:18px 28px 70px}
+  .head{text-align:center;margin:18px 0 40px}
+  .step-dots{display:flex;gap:8px;justify-content:center;margin-bottom:22px}
+  .sd{width:8px;height:8px;border-radius:99px;background:var(--line2)}
+  .sd.on{background:var(--acc);box-shadow:0 0 10px var(--acc)}
+  h1{font-family:var(--fd);font-weight:600;font-size:clamp(30px,4.6vw,46px);letter-spacing:-.02em;margin:0 0 14px}
+  .head p{font-size:17px;color:var(--ink2);max-width:46ch;margin:0 auto;font-weight:500}
+  .head p b{color:var(--ink);font-weight:800}
+  /* two cards */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:720px){.cards{grid-template-columns:1fr}}
+  .opt{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px;display:flex;flex-direction:column;transition:transform .15s,border-color .15s}
+  .opt:hover{transform:translateY(-3px);border-color:var(--accln)}
+  .opt .ic{width:48px;height:48px;border-radius:14px;background:var(--accdim);border:1px solid var(--accln);display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+  .opt h3{font-family:var(--fd);font-size:22px;font-weight:600;margin:0 0 8px}
+  .opt .badge{font-size:12px;font-weight:700;color:var(--acc);background:var(--accdim);border:1px solid var(--accln);border-radius:99px;padding:3px 11px;align-self:flex-start;margin-bottom:14px}
+  .opt p{font-size:14.5px;color:var(--ink2);line-height:1.55;margin:0 0 20px;flex:1}
+  .btn{font-family:var(--fd);font-size:15.5px;font-weight:600;border-radius:13px;padding:13px 22px;cursor:pointer;border:none;transition:transform .12s,background .15s;display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%}
+  .btn:hover{transform:translateY(-1px)}
+  .btn.p{background:var(--acc);color:#08120c;box-shadow:0 6px 22px var(--accglow)}
+  .btn.p:hover{background:var(--acc2)}
+  .btn.g{background:var(--card2);color:var(--ink);border:1px solid var(--line2)}
+  .btn.g:hover{border-color:var(--acc);color:var(--acc)}
+  input[type=file]{display:none}
+  .fname{font-size:13px;color:var(--mut);margin-top:10px;text-align:center;font-weight:600;min-height:16px}
+  /* panel (BYO-AI) */
+  .panel{margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px;display:none}
+  .panel.show{display:block;animation:rv .4s ease}
+  @keyframes rv{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .panel h3{font-family:var(--fd);font-size:21px;font-weight:600;margin:0 0 6px}
+  .panel .lead{font-size:14.5px;color:var(--ink2);margin:0 0 18px;line-height:1.5}
+  .num{display:flex;gap:14px;margin-bottom:16px;align-items:flex-start}
+  .num .n{flex-shrink:0;width:26px;height:26px;border-radius:99px;background:var(--accdim);border:1px solid var(--accln);color:var(--acc);font-family:var(--fd);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .num .t{font-size:14.5px;color:var(--ink2);line-height:1.5;padding-top:2px}
+  .num .t b{color:var(--ink);font-weight:700}
+  .promptbox{position:relative;background:#0a0d12;border:1px solid var(--line2);border-radius:14px;padding:16px 16px 16px;margin:8px 0 18px}
+  pre{margin:0;font-family:'Nunito',monospace;font-size:13px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto}
+  .copy{position:absolute;top:12px;right:12px;font-family:var(--fd);font-size:12.5px;font-weight:600;color:var(--acc);background:var(--accdim);border:1px solid var(--accln);border-radius:9px;padding:7px 13px;cursor:pointer}
+  .copy.done{color:#08120c;background:var(--acc)}
+  textarea{width:100%;min-height:120px;background:#0a0d12;border:1px solid var(--line2);border-radius:14px;padding:14px;color:var(--ink);font-family:'Nunito',monospace;font-size:13px;line-height:1.55;resize:vertical;outline:none}
+  textarea:focus{border-color:var(--accln)}
+  .msg{font-size:13.5px;font-weight:600;margin-top:12px;min-height:18px}
+  .msg.ok{color:var(--acc)} .msg.err{color:#e3804f}
+  .back{display:inline-block;margin-top:26px;font-size:14px;color:var(--mut);font-weight:600}
+  .back:hover{color:var(--acc)}
+</style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/"><span class="mk"></span>JobMatch</a>
+  <div class="nav-r"><a href="/app">Skip to the app →</a></div>
+</nav>
+
+<div class="wrap">
+  <div class="head">
+    <div class="step-dots"><span class="sd on"></span><span class="sd"></span><span class="sd"></span></div>
+    <h1>Let's build your profile.</h1>
+    <p>JobMatch ranks jobs against <b>you</b>, so first it needs to know your stack, experience, and what you're looking for. Pick the way that's easiest. Takes about a minute.</p>
+  </div>
+
+  <div class="cards">
+    <div class="opt">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4fe39b" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></div>
+      <span class="badge">Fastest</span>
+      <h3>Upload your resume</h3>
+      <p>Drop in a PDF, DOCX, or TXT. JobMatch reads it and builds your structured profile automatically. You review and tweak before it runs. Nothing is invented, anything unclear is left for you to fill.</p>
+      <label class="btn p" for="resumeFile">Choose resume file</label>
+      <input type="file" id="resumeFile" accept=".pdf,.docx,.txt,.md"/>
+      <div class="fname" id="fname"></div>
+      <div class="msg" id="resumeMsg"></div>
+    </div>
+
+    <div class="opt">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4fe39b" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-1 8H9a4 4 0 0 1-1-8 4 4 0 0 1 4-4Z"/><path d="M9 14v4a3 3 0 0 0 6 0v-4"/></svg></div>
+      <span class="badge">No file needed</span>
+      <h3>Let your own AI describe you</h3>
+      <p>Already chat with ChatGPT or Claude? Copy a short prompt, paste it into your AI, and it writes your profile from what it already knows about you. Paste the result back here. Costs you nothing.</p>
+      <button class="btn g" onclick="togglePanel()">Use my own AI →</button>
+    </div>
+  </div>
+
+  <!-- BYO AI panel -->
+  <div class="panel" id="panel">
+    <h3>Bring your own AI</h3>
+    <p class="lead">Three quick steps. No API key, no cost.</p>
+    <div class="num"><div class="n">1</div><div class="t"><b>Copy this prompt</b> and paste it into ChatGPT or Claude (the free web version is fine).</div></div>
+    <div class="promptbox">
+      <button class="copy" id="copyBtn" onclick="copyPrompt()">Copy</button>
+      <pre id="prompt"></pre>
+    </div>
+    <div class="num"><div class="n">2</div><div class="t"><b>Copy the JSON</b> your AI gives back.</div></div>
+    <div class="num"><div class="n">3</div><div class="t"><b>Paste it below</b> and save.</div></div>
+    <textarea id="jsonIn" placeholder="Paste the JSON your AI returned here..."></textarea>
+    <button class="btn p" style="margin-top:14px;width:auto;padding:13px 26px" onclick="saveProfile()">Save my profile →</button>
+    <div class="msg" id="byoMsg"></div>
+  </div>
+
+  <a class="back" href="/">← Back</a>
+</div>
+
+<script>
+const API = location.origin.startsWith("file") ? "http://localhost:8000" : "";
+const SCHEMA = `{
+  "name": null, "email": null, "phone": null, "location": null,
+  "work_authorization": null, "requires_sponsorship": null,
+  "target_titles": [], "years_experience": null,
+  "education": [{"degree": null, "school": null, "dates": null}],
+  "skills": {"languages": [], "frameworks": [], "tools": [], "databases": []},
+  "projects": [{"name": null, "stack": [], "summary": null}],
+  "preferences": {"remote_ok": null, "onsite_ok": null, "locations": [], "min_salary": null},
+  "links": {"github": null, "linkedin": null, "portfolio": null}
+}`;
+const PROMPT = `Based on everything you know about me from our past conversations, plus anything I add below, output a single JSON object matching the schema for a software-engineering job-application profile. Only include facts you're confident about; use null for anything you don't know. Do not invent employers, dates, or numbers. Output ONLY the JSON.
+
+SCHEMA:
+${SCHEMA}
+
+EXTRA INFO FROM ME:
+<add anything here, or leave blank>`;
+
+document.getElementById("prompt").textContent = PROMPT;
+
+function togglePanel(){document.getElementById("panel").classList.toggle("show");document.getElementById("panel").scrollIntoView({behavior:"smooth",block:"nearest"});}
+function copyPrompt(){navigator.clipboard?.writeText(PROMPT);const b=document.getElementById("copyBtn");b.textContent="Copied";b.classList.add("done");setTimeout(()=>{b.textContent="Copy";b.classList.remove("done")},1500);}
+
+function saveProfile(){
+  const raw=document.getElementById("jsonIn").value.trim();
+  const msg=document.getElementById("byoMsg");
+  if(!raw){msg.className="msg err";msg.textContent="Paste the JSON first.";return;}
+  let clean=raw.replace(/^```json/,"").replace(/^```/,"").replace(/```$/,"").trim();
+  let obj;
+  try{obj=JSON.parse(clean);}catch(e){msg.className="msg err";msg.textContent="That doesn't look like valid JSON. Copy the whole object your AI returned.";return;}
+  fetch(API+"/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){msg.className="msg ok";msg.textContent="Saved. Taking you to your feed...";setTimeout(()=>location.href="/app",900);}
+      else{msg.className="msg err";msg.textContent=d.error||"Could not save.";}
+    }).catch(()=>{msg.className="msg err";msg.textContent="Can't reach the server. Start it with: uvicorn server:app --port 8000";});
+}
+
+document.getElementById("resumeFile").addEventListener("change",function(){
+  const f=this.files[0];const msg=document.getElementById("resumeMsg");
+  if(!f)return;
+  document.getElementById("fname").textContent=f.name;
+  msg.className="msg";msg.textContent="Uploading and reading your resume...";
+  const fd=new FormData();fd.append("file",f);
+  fetch(API+"/api/onboard",{method:"POST",body:fd})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){msg.className="msg ok";msg.textContent="Profile built. Taking you to your feed...";setTimeout(()=>location.href="/app",900);}
+      else{msg.className="msg err";msg.textContent=d.error||"Could not read that file.";}
+    }).catch(()=>{msg.className="msg err";msg.textContent="Can't reach the server. Start it with: uvicorn server:app --port 8000";});
+});
+</script>
+</body>
+</html>

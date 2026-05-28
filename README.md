@@ -161,9 +161,10 @@ jobmatch/
 ├── enrich.py               # recruiter contacts (Apollo) + email verify + outreach draft
 ├── scan.py                 # paste-a-JD/URL -> full pipeline on one role
 ├── make_ui.py              # bakes ranked_jobs.json -> standalone viewer.html
-├── landing.html            # marketing landing page (served at / by server.py)
+├── landing.html            # dark single-screen marketing landing page (served at /)
+├── start.html              # onboarding: upload resume or bring-your-own-AI (served at /start)
 ├── app.html                # hosted single-page app: live feed + refresh button + progress bar
-├── server.py               # FastAPI: / landing, /app feed, /api/refresh (live), /api/scan
+├── server.py               # FastAPI: / landing, /start onboarding, /app feed, /api/* endpoints
 ├── db.py                   # optional Postgres schema + freshness/death-detection
 ├── worker.py               # optional scheduled re-pull
 ├── prompts.py              # profile schema + all LLM prompts (the heart)
