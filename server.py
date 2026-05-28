@@ -23,7 +23,7 @@ import time
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from pydantic import BaseModel
 
 import db
@@ -73,6 +73,56 @@ app = FastAPI(title="Jobrolu API", version="1.0")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
+
+# ---------------------------------------------------------------- access gate
+# A single shared access code protects the app + all action endpoints, so only
+# people you give the code to can use the AI (and spend your API budget). The
+# landing page stays public. Set ACCESS_CODE in the host's env; if it's unset,
+# the gate is OFF (handy for local dev).
+import hashlib as _hashlib
+import secrets as _secrets
+
+ACCESS_CODE = os.environ.get("ACCESS_CODE", "").strip()
+# A per-process secret so the unlock cookie can't be guessed/forged.
+_COOKIE_SECRET = os.environ.get("COOKIE_SECRET", _secrets.token_hex(16))
+
+
+def _valid_token():
+    """The cookie value a correctly-unlocked client should carry."""
+    return _hashlib.sha256((ACCESS_CODE + _COOKIE_SECRET).encode()).hexdigest()
+
+
+def _is_unlocked(request):
+    """True if the gate is off, or the request carries a valid unlock cookie."""
+    if not ACCESS_CODE:
+        return True
+    return request.cookies.get("jr_access") == _valid_token()
+
+
+def _require_unlock(request):
+    if not _is_unlocked(request):
+        raise HTTPException(status_code=401, detail="locked")
+
+
+# ---------------------------------------------------------------- rate limit
+# Simple in-memory limiter so even an unlocked user can't spam the paid endpoint
+# into a huge bill. Per-client (by IP), a small number of refreshes per window.
+_RATE = {}
+_RATE_MAX = int(os.environ.get("REFRESH_MAX_PER_HOUR", "5"))
+_RATE_WINDOW = 3600
+
+
+def _rate_ok(request):
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    hits = [t for t in _RATE.get(ip, []) if now - t < _RATE_WINDOW]
+    if len(hits) >= _RATE_MAX:
+        _RATE[ip] = hits
+        return False
+    hits.append(now)
+    _RATE[ip] = hits
+    return True
+
 
 RANKED_FILE = os.environ.get("RANKED_FILE", "ranked_jobs.json")
 
@@ -187,8 +237,9 @@ def _load_profile(user_id):
 
 
 @app.post("/api/scan")
-def scan_endpoint(inp: ScanInput):
+def scan_endpoint(request: Request, inp: ScanInput):
     """Paste-a-JD-or-URL endpoint. Runs fit-rank + contacts + draft on one role."""
+    _require_unlock(request)
     if not inp.text.strip():
         raise HTTPException(status_code=400, detail="text is empty")
     profile = _load_profile(inp.user_id)
@@ -207,9 +258,13 @@ class RefreshInput(BaseModel):
 
 
 @app.post("/api/refresh")
-def start_refresh(inp: RefreshInput = RefreshInput()):
+def start_refresh(request: Request, inp: RefreshInput = RefreshInput()):
     """Kick off a background pipeline run. Old jobs are preserved; new postings
     are appended and flagged. Returns immediately; poll /api/refresh/status."""
+    _require_unlock(request)
+    if not _rate_ok(request):
+        raise HTTPException(status_code=429,
+                            detail="Too many refreshes. Try again later.")
     with _refresh_lock:
         if _refresh["running"]:
             return {"started": False, "reason": "a refresh is already running"}
@@ -245,8 +300,11 @@ def index():
 
 
 @app.get("/app")
-def app_ui():
-    """Serve the hosted single-page app (the ranked feed)."""
+def app_ui(request: Request):
+    """Serve the hosted single-page app (the ranked feed). Gated by access code."""
+    if not _is_unlocked(request):
+        return FileResponse("unlock.html") if os.path.exists("unlock.html") else \
+            RedirectResponse("/unlock")
     for path in ("app.html", "viewer.html"):
         if os.path.exists(path):
             return FileResponse(path)
@@ -254,16 +312,50 @@ def app_ui():
 
 
 @app.get("/start")
-def start_ui():
-    """Serve the onboarding page (build your profile)."""
+def start_ui(request: Request):
+    """Serve the onboarding page (build your profile). Gated by access code."""
+    if not _is_unlocked(request):
+        return FileResponse("unlock.html") if os.path.exists("unlock.html") else \
+            RedirectResponse("/unlock")
     if os.path.exists("start.html"):
         return FileResponse("start.html")
     raise HTTPException(status_code=404, detail="no start.html found")
 
 
+@app.get("/unlock")
+def unlock_page():
+    """The access-code entry page."""
+    if os.path.exists("unlock.html"):
+        return FileResponse("unlock.html")
+    raise HTTPException(status_code=404, detail="no unlock.html found")
+
+
+@app.post("/api/unlock")
+async def do_unlock(request: Request):
+    """Check the access code; on success set the unlock cookie."""
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    code = (data.get("code") or "").strip()
+    if not ACCESS_CODE:
+        # gate disabled; treat as already unlocked
+        return {"ok": True}
+    if code and _secrets.compare_digest(code, ACCESS_CODE):
+        resp = JSONResponse({"ok": True})
+        resp.set_cookie(
+            "jr_access", _valid_token(),
+            max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax",
+            secure=os.environ.get("COOKIE_SECURE", "1") == "1",
+        )
+        return resp
+    return JSONResponse({"ok": False, "error": "Incorrect code."}, status_code=403)
+
+
 @app.post("/api/profile")
 async def save_profile(request: Request):
     """Save a profile JSON (from the bring-your-own-AI flow) to disk."""
+    _require_unlock(request)
     try:
         data = await request.json()
     except Exception:
@@ -280,8 +372,9 @@ async def save_profile(request: Request):
 
 
 @app.post("/api/onboard")
-async def onboard_resume(file: UploadFile = File(...)):
+async def onboard_resume(request: Request, file: UploadFile = File(...)):
     """Accept a resume upload, parse it into a profile, save it."""
+    _require_unlock(request)
     import tempfile
     suffix = os.path.splitext(file.filename or "")[1].lower() or ".txt"
     if suffix not in (".pdf", ".docx", ".txt", ".md"):
