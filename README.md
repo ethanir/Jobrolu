@@ -33,7 +33,7 @@ You stay in control of the final send. No spammy auto-apply, no getting your Lin
          |
          v
   +----------------------------------------------+
-  |  SOURCING   6 ATS connectors + self-growing   |
+  |  SOURCING   7 ATS + aggregator, self-growing   |
   |             company registry + curated lists  | --> ~40k live roles, parallel pull
   +----------------------------------------------+
          |
@@ -42,6 +42,9 @@ You stay in control of the final send. No spammy auto-apply, no getting your Lin
          |
          v   free heuristic scorer (score.py), $0
    FUNNEL     skill overlap + title + location + recency, ranks ALL
+         |
+         v   fetch full posting for the TOP_N (hydrate.py), $0
+   HYDRATE    so the AI sees the whole job page, not a snippet
          |
          v   LLM rubric — TOP_N only (default 100), the only paid step
    FIT-RANK   score - tier - reasons - gaps        ~$1 first run
@@ -62,7 +65,7 @@ You stay in control of the final send. No spammy auto-apply, no getting your Lin
 
 | | Feature | What it does |
 |---|---|---|
-| 🔎 | **Multi-source sourcing** | Pulls live roles from **6 ATS platforms** (Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, Workable) plus curated new-grad lists. Pulls run in parallel — ~40k roles in under a minute. |
+| 🔎 | **Multi-source sourcing** | Pulls live roles from **7 ATS platforms** (Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, Workable, Workday) plus the Adzuna keyword aggregator and curated new-grad lists. Pulls run in parallel — ~50k roles in a couple of minutes. |
 | 🌱 | **Self-growing registry** | Every job URL teaches it a new company token, so coverage **compounds automatically** — no manual company list to maintain. |
 | 📈 | **Registry seeding (`seed.py` / `bulk_seed.py`)** | Widen coverage on demand: validates candidate companies against their live ATS boards and adds only the ones that really return jobs. `bulk_seed.py` ships a large curated list (175+ known tech employers across Greenhouse/Lever/Ashby). **$0 API cost** (plain HTTP, no LLM), runs in parallel. This is the v2 "coverage" lever — more companies in the funnel, same ranking cost. |
 | 💸 | **Cost-correct funnel** | A free heuristic scores *every* role; only the top N (default 100) hit the LLM. A full run costs **~$1, not ~$70.** Set `TOP_N=0` for a fully free run. |
@@ -73,6 +76,9 @@ You stay in control of the final send. No spammy auto-apply, no getting your Lin
 | 🖥️ | **Standalone viewer** | `make_ui.py` bakes the feed into a single `viewer.html` — no server, no build step. Filterable by Strong / Possible / Skip. Each role shows **Why you fit** (the positives) and **Worth knowing** (the honest concerns) split cleanly, plus matched skills and gaps. |
 | 🔎 | **Scan any role** | Paste a JD or URL from LinkedIn / Handshake → instant fit-rank + draft for one role you found yourself. |
 | 🧠 | **Smart free pre-filter** | A sharp heuristic scorer (exact-title, new-grad signal, SWE role family, seniority penalty, location, recency, skill saturation) ranks all ~50k jobs for **$0** and forwards only the genuinely-best to the LLM, so the paid step sees quality, not look-alikes. |
+| ✅ | **"Strong" means AI-verified** | The free keyword pre-filter never awards "strong" — the best it can show is "possible". Only the LLM, after reading the full posting, can mark a job "strong". So every green "Strong fit" is one the AI actually analyzed, not a keyword coincidence. |
+| 📄 | **Full-description hydration (`hydrate.py`)** | Before the AI ranks a job, the complete posting is fetched (Greenhouse, Lever, SmartRecruiters, Workday detail endpoints), so the AI sees everything on the page — including disqualifiers like "requires security clearance" or "5+ years". Runs only on the jobs about to be ranked, in parallel, $0. |
+| 🎯 | **Whole-word skill matching + disqualifier signals** | The pre-filter matches skills as whole words (so "c" no longer matches "clearance") and down-weights security-clearance / high-experience roles a new grad can't satisfy. |
 | 💸 | **Bring-your-own-AI ranking (`export_rank.py` / `import_rank.py`)** | Rank your top jobs for **$0 API** using the free web version of Claude or ChatGPT: export a ready-to-paste file, paste it into the web chat, paste the result back. The smart pre-filter shrinks the set first so a chat window can handle it. |
 | 🛑 | **No auto-apply, no auto-send** | Deliberately. It protects your accounts, your sender reputation, and the quality of every application. |
 | 🔄 | **Hosted live feed + refresh** | Run `server.py` and open the app in a browser: a single **Refresh jobs** button re-runs the whole pipeline in the background with a **live progress bar**. New postings are appended and flagged **NEW**; previously-found roles never disappear. This is the hosted version that v3 ships. |
@@ -140,12 +146,14 @@ For a large registry (e.g. 475 companies / ~50k jobs), `TOP_N=100` is too shallo
 jobmatch/
 ├── main.py                 # orchestrator: source -> filter -> funnel -> rank -> cache -> enrich -> output
 ├── onboard.py              # resume (PDF/DOCX/TXT) -> structured profile via LLM
-├── sources.py              # 6 ATS connectors + curated-list pull (parallel)
+├── sources.py              # 7 ATS connectors + Adzuna aggregator + curated lists (parallel)
 ├── registry.py             # self-growing company->token registry
 ├── seed.py                 # widen the registry: validate + add companies (v2 coverage, $0 API)
 ├── bulk_seed.py            # large curated company list, validated + added in bulk ($0 API)
+├── seed_workday.py         # add Workday-hosted employers (tenant/site/wdN format)
 ├── prefilter.py            # free rule-based cut before any LLM call
 ├── score.py                # smart free heuristic funnel scorer ($0) — picks what the LLM sees
+├── hydrate.py              # fetch full job descriptions before AI ranking ($0)
 ├── export_rank.py          # export top jobs to rank with your free web AI ($0)
 ├── import_rank.py          # merge web-AI rankings back into the feed ($0)
 ├── rank.py                 # LLM fit-ranking engine (parallel)
@@ -153,8 +161,9 @@ jobmatch/
 ├── enrich.py               # recruiter contacts (Apollo) + email verify + outreach draft
 ├── scan.py                 # paste-a-JD/URL -> full pipeline on one role
 ├── make_ui.py              # bakes ranked_jobs.json -> standalone viewer.html
+├── landing.html            # marketing landing page (served at / by server.py)
 ├── app.html                # hosted single-page app: live feed + refresh button + progress bar
-├── server.py               # FastAPI: serves the feed, /api/refresh (live), /api/scan
+├── server.py               # FastAPI: / landing, /app feed, /api/refresh (live), /api/scan
 ├── db.py                   # optional Postgres schema + freshness/death-detection
 ├── worker.py               # optional scheduled re-pull
 ├── prompts.py              # profile schema + all LLM prompts (the heart)
@@ -180,11 +189,11 @@ jobmatch/
 - [x] Standalone single-file viewer (Why-you-fit / Worth-knowing split, copy-ready email)
 - [x] Scan-any-role (paste a JD/URL)
 
-**v2 — the only thing left: coverage.** The ranking engine is strong; the one real ceiling is *how many jobs enter the funnel*. v1 scans ~400 companies on 6 ATS types. These three steps, in order of impact, take it from "a great slice" toward "scans everywhere," and are the entire remaining build:
+**v2 — the only thing left: coverage.** The ranking engine is strong; the one real ceiling is *how many jobs enter the funnel*. v1 scanned ~400 companies on 6 ATS types; v2 now covers 7 ATS platforms plus an aggregator. These three steps, in order of impact, take it from "a great slice" toward "scans everywhere," and are the entire remaining build:
 
-1. **Expand the company registry** *(biggest win, least work)* — seed it from large public sources (YC company list, public Greenhouse / Lever / Ashby board directories, levels.fyi company list) to go from ~400 to several thousand companies. More companies in = more real roles ranked.
-2. **Add a Workday connector** — the single biggest missing ATS. A large share of mid-to-large employers post only on Workday, so it's currently invisible to the tool. Harder than the JSON-clean ATS APIs, but the largest coverage gap.
-3. **Pull from a job-aggregator feed** — invert the problem from "list every company" to "query one giant index," then dedupe against the ATS pulls. This is the path to true "everything, everywhere" coverage.
+1. **Expand the company registry** *(biggest win, least work)* — seed it from large public sources (YC company list, public Greenhouse / Lever / Ashby board directories, levels.fyi company list) to go from ~400 to several thousand companies. More companies in = more real roles ranked. `seed.py` / `bulk_seed.py` do this.
+2. **Workday connector — ✅ done.** `from_workday` hits the public Workday CXS endpoint; seed employers with `seed_workday.py`. Opens up large-enterprise employers that were invisible before.
+3. **Job-aggregator feed — ✅ done (Adzuna).** `from_adzuna` queries one keyword index across many boards, deduped against ATS pulls. Set `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` to enable.
 
 **v3 — launch.** Once coverage is wide, ship it as a real product:
 

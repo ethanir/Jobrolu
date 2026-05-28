@@ -60,14 +60,17 @@ and either the recruiter's email (if Apollo returned one) or a one-click
 Re-run `make_ui.py` only after a fresh `main.py` run. To just look again at the
 current feed, `open viewer.html` is enough.
 
-## 4. Or: the hosted live app (refresh button + progress bar)
+## 4. Or: the hosted site (landing page + live app)
 ```bash
 uvicorn server:app --port 8000     # or: python3 -m uvicorn server:app --port 8000
 # then open http://localhost:8000 in your browser
 ```
-This serves `app.html` — the same editorial feed, but live. Hit **Refresh jobs**
-and the whole pipeline re-runs in the background while a progress bar tracks each
-stage (pulling, scoring, ranking, drafting). When it finishes, new postings appear
+- `http://localhost:8000/` serves the **landing page** (`landing.html`): explains the
+  product, the funnel, the sources, the cost. One click on "Open my ranked feed"
+  takes the user to the app.
+- `http://localhost:8000/app` serves the **live feed** (`app.html`): the same
+  editorial feed, but with a **Refresh jobs** button that re-runs the whole pipeline
+  in the background while a progress bar tracks each stage. New postings appear
 flagged **NEW** and float to the top; previously-found roles stay put. Paste a
 recruiter's name to personalize the email; subject and body each have their own
 copy button. This is the version v3 deploys to the web.
@@ -88,6 +91,18 @@ Finding a recruiter's real email needs an Apollo key AND a paid Apollo plan;
 the free plan blocks the people-search API (you'll see a 403, handled gracefully).
 Without it, the LinkedIn fallback link does the same job for free. The draft email
 always generates regardless — it only needs your Anthropic key.
+
+## What the tiers mean (important)
+- **Strong** = the AI read the full posting and confirmed a strong fit. Trustworthy.
+- **Possible** = passed the free keyword pre-filter but the AI hasn't verified it yet
+  (it wasn't in this run's TOP_N). To get these AI-verified, raise `TOP_N` and re-run.
+- **Skip** = clear non-fit (seniority, clearance, wrong role, etc.).
+
+Because only the AI can award "strong", a job showing "Keyword pre-match" in its
+reasons has NOT been AI-verified. Before the AI ranks a job it now fetches the full
+description (`hydrate.py`), so its decision is based on the whole posting -- including
+disqualifiers like "requires security clearance" or "5+ years experience" that a
+keyword scan would miss.
 
 ## Rank deeper for a big registry
 With a large registry (e.g. 475 companies / ~50k jobs), the default `TOP_N=100` can
@@ -110,6 +125,27 @@ This works because the free heuristic pre-filter forwards only the best few doze
 jobs, which is small enough for a chat window to rank well. It does not rank all
 50k for free (a chat can't take that much), but it removes the paid step for your
 top batch.
+
+## Add Workday employers (large enterprises)
+Workday hosts most big companies and was previously invisible. Add a curated set:
+```bash
+python3 seed_workday.py          # adds ~30 verified Workday employers
+python3 seed_workday.py --list   # see what's built in
+```
+To add your own, open a company's Workday careers page. The URL
+`https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite` becomes the token
+`nvidia/NVIDIAExternalCareerSite/wd5` (tenant / site / server). Add a line in
+`seed_workday.py` and re-run. Dead boards are skipped automatically at pull time.
+
+## Enable the Adzuna aggregator (optional, free)
+Adzuna searches many job boards at once by keyword. Get a free key at
+developer.adzuna.com, then add to `~/.zshrc`:
+```bash
+export ADZUNA_APP_ID="your_app_id"
+export ADZUNA_APP_KEY="your_app_key"
+```
+Open a new terminal (or `source ~/.zshrc`). The next run pulls Adzuna results too,
+deduped against the ATS jobs. Without the keys, it's simply skipped.
 
 ## Widen coverage (more companies, $0 API)
 ```bash

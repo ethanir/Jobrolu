@@ -234,8 +234,20 @@ def refresh_status():
 # ---------------------------------------------------------------- web UI
 @app.get("/")
 def index():
-    """Serve the hosted single-page app if present."""
+    """Serve the marketing landing page."""
+    if os.path.exists("landing.html"):
+        return FileResponse("landing.html")
+    # fall back to the app if the landing page isn't present
     for path in ("app.html", "viewer.html"):
         if os.path.exists(path):
             return FileResponse(path)
-    raise HTTPException(status_code=404, detail="no UI file found (build app.html)")
+    raise HTTPException(status_code=404, detail="no UI file found (build landing.html / app.html)")
+
+
+@app.get("/app")
+def app_ui():
+    """Serve the hosted single-page app (the ranked feed)."""
+    for path in ("app.html", "viewer.html"):
+        if os.path.exists(path):
+            return FileResponse(path)
+    raise HTTPException(status_code=404, detail="no app UI found (build app.html)")

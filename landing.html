@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>JobMatch · your AI job-matching engine</title>
+<meta name="description" content="Scans 50,000+ live roles across 500+ companies, reads every full description with AI, and ranks the handful that actually fit you."/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,600&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#fdfcf8; --ink:#1a1a17; --ink2:#33312a; --mut:#8a8578;
+    --line:#e4e0d6; --line2:#ece8dd; --green:#176844; --greenbg:#eaf6ef; --greenln:#cfe7d8;
+    --amber:#a98a3a; --amberbg:#fbf3e2; --amberln:#ecdcb8;
+    --fd:'Fraunces',serif; --fr:'Newsreader',serif; --fu:'IBM Plex Sans',sans-serif; --fm:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fu);-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 28px}
+  ::selection{background:var(--greenln)}
+
+  /* grain + atmosphere */
+  body:before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background:radial-gradient(900px 500px at 78% -8%, #ecf4ee 0%, transparent 60%),
+               radial-gradient(700px 500px at -5% 12%, #f3efe6 0%, transparent 55%);}
+
+  /* header */
+  header{position:sticky;top:0;z-index:30;background:rgba(246,244,239,.82);backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .3s}
+  header.scrolled{border-color:var(--line)}
+  .head-in{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+  .brand{font-family:var(--fd);font-size:25px;font-weight:600;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+  .brand .mk{width:12px;height:12px;border-radius:99px;background:var(--green);box-shadow:0 0 0 4px var(--greenbg)}
+  .nav{display:flex;align-items:center;gap:30px}
+  .nav a{font-size:14px;color:var(--ink2);transition:color .15s}
+  .nav a:hover{color:var(--green)}
+  .nav .cta{font-weight:600;color:#f6f4ef;background:var(--ink);border-radius:10px;padding:10px 18px}
+  .nav .cta:hover{color:#f6f4ef;opacity:.9}
+  @media(max-width:680px){.nav a:not(.cta){display:none}}
+
+  section{position:relative;z-index:1}
+
+  /* hero */
+  .hero{padding:78px 0 54px}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--fm);font-size:12px;color:var(--green);background:var(--greenbg);border:1px solid var(--greenln);border-radius:99px;padding:6px 14px;margin-bottom:26px;letter-spacing:.02em}
+  .eyebrow .pulse{width:7px;height:7px;border-radius:99px;background:var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  h1{font-family:var(--fd);font-weight:600;font-size:clamp(40px,6.4vw,76px);line-height:1.02;letter-spacing:-.03em;margin:0 0 24px;max-width:16ch}
+  h1 em{font-style:italic;color:var(--green)}
+  .lede{font-family:var(--fr);font-size:clamp(18px,2.2vw,22px);line-height:1.5;color:var(--ink2);max-width:54ch;margin:0 0 36px}
+  .cta-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .btn{font-family:var(--fu);font-size:15px;font-weight:600;border-radius:12px;padding:15px 26px;cursor:pointer;border:1px solid var(--ink);transition:transform .12s,opacity .15s;display:inline-flex;align-items:center;gap:10px}
+  .btn:hover{transform:translateY(-1px)}
+  .btn.primary{background:var(--ink);color:#f6f4ef}
+  .btn.primary:hover{opacity:.9}
+  .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--ink)}
+  .micro{font-family:var(--fm);font-size:12px;color:var(--mut);margin-top:18px}
+
+  /* stat strip */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:8px 0 0}
+  @media(max-width:680px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--card);padding:26px 24px}
+  .stat b{display:block;font-family:var(--fd);font-size:34px;font-weight:600;letter-spacing:-.02em;line-height:1}
+  .stat span{font-family:var(--fu);font-size:13px;color:var(--mut);margin-top:8px;display:block}
+
+  /* section heading */
+  .sec{padding:66px 0}
+  .sec-lbl{font-family:var(--fm);font-size:12px;color:var(--green);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+  .sec-h{font-family:var(--fd);font-size:clamp(28px,4vw,42px);font-weight:600;letter-spacing:-.02em;line-height:1.1;margin:0 0 16px;max-width:20ch}
+  .sec-p{font-family:var(--fr);font-size:18px;line-height:1.55;color:var(--ink2);max-width:58ch;margin:0}
+
+  /* funnel */
+  .funnel{margin-top:46px;display:flex;flex-direction:column;gap:0}
+  .stage{display:grid;grid-template-columns:54px 1fr auto;align-items:center;gap:22px;padding:22px 26px;background:var(--card);border:1px solid var(--line);border-radius:14px;position:relative}
+  .stage + .stage{margin-top:-1px}
+  .stage .idx{font-family:var(--fm);font-size:13px;color:var(--mut);font-weight:500}
+  .stage .body h4{font-family:var(--fd);font-size:19px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+  .stage .body p{font-family:var(--fu);font-size:14px;color:var(--mut);margin:0;line-height:1.45}
+  .stage .vol{font-family:var(--fm);font-size:13px;color:var(--ink2);white-space:nowrap;text-align:right}
+  .stage .vol s{display:block;font-size:11px;color:var(--mut);text-decoration:none;margin-top:3px}
+  .stage.paid{border-color:var(--greenln);background:linear-gradient(0deg,var(--greenbg),var(--card))}
+  .stage.paid .tag{position:absolute;top:-10px;right:18px;font-family:var(--fm);font-size:10px;color:var(--green);background:var(--card);border:1px solid var(--greenln);border-radius:99px;padding:3px 10px}
+  .connector{height:18px;width:2px;background:var(--line);margin:0 auto}
+
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .feat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px;transition:transform .15s,box-shadow .15s}
+  .feat:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(26,26,23,.06)}
+  .feat .ic{width:38px;height:38px;border-radius:10px;background:var(--greenbg);border:1px solid var(--greenln);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .feat h4{font-family:var(--fd);font-size:19px;font-weight:600;margin:0 0 8px;letter-spacing:-.01em}
+  .feat p{font-family:var(--fu);font-size:14px;color:var(--ink2);line-height:1.5;margin:0}
+  .feat p .q{color:var(--mut)}
+
+  /* sources marquee */
+  .sources{margin-top:40px;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:30px 26px;text-align:center}
+  .sources .t{font-family:var(--fu);font-size:13px;color:var(--mut);margin-bottom:18px}
+  .badges{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .badge{font-family:var(--fu);font-size:13.5px;font-weight:500;color:var(--ink2);background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:8px 16px}
+  .badge.agg{border-color:var(--greenln);color:var(--green);background:var(--greenbg)}
+
+  /* fit example card */
+  .demo{margin-top:44px;border:1px solid var(--line);border-radius:18px;background:var(--card);overflow:hidden}
+  .demo-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;padding:26px 30px 20px;border-bottom:1px solid var(--line2)}
+  .demo-co{font-family:var(--fu);font-size:12px;font-weight:600;color:#6f6a5d;text-transform:uppercase;letter-spacing:.05em}
+  .demo-ti{font-family:var(--fd);font-size:24px;font-weight:600;margin:6px 0 8px;letter-spacing:-.02em}
+  .demo-loc{font-family:var(--fu);font-size:13px;color:var(--mut)}
+  .demo-ring{flex-shrink:0;width:62px;height:62px;border-radius:99px;border:3px solid var(--green);display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .demo-ring b{font-family:var(--fu);font-size:19px;font-weight:600;line-height:1}
+  .demo-ring s{font-family:var(--fu);font-size:9px;color:var(--mut);text-decoration:none;letter-spacing:.08em}
+  .demo-body{padding:24px 30px 28px}
+  .demo-lbl{font-family:var(--fu);font-size:11.5px;font-weight:600;color:#a39d8e;text-transform:uppercase;letter-spacing:.07em;margin:0 0 12px}
+  .demo-list{list-style:none;margin:0 0 22px;padding:0;display:flex;flex-direction:column;gap:9px}
+  .demo-list li{display:flex;gap:10px;font-family:var(--fu);font-size:14.5px;line-height:1.45;color:var(--ink2)}
+  .demo-list li i{font-style:normal;flex-shrink:0;margin-top:1px}
+  .demo-list.pos li i{color:var(--green)}
+  .demo-list.con li{color:var(--mut)} .demo-list.con li i{color:var(--amber)}
+
+  /* cost callout */
+  .cost{margin-top:44px;display:grid;grid-template-columns:1.1fr 1fr;gap:0;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  @media(max-width:760px){.cost{grid-template-columns:1fr}}
+  .cost .l{padding:36px;background:var(--ink);color:#f1eee6}
+  .cost .l h3{font-family:var(--fd);font-size:26px;font-weight:600;margin:0 0 12px;letter-spacing:-.02em}
+  .cost .l p{font-family:var(--fr);font-size:16px;line-height:1.55;color:#c9c4b6;margin:0}
+  .cost .r{padding:30px 36px;background:var(--card);display:flex;flex-direction:column;justify-content:center;gap:14px}
+  .cost-row{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--fu);font-size:15px;padding-bottom:12px;border-bottom:1px solid var(--line2)}
+  .cost-row:last-child{border:none;padding-bottom:0}
+  .cost-row b{font-family:var(--fm);font-weight:500;color:var(--green)}
+  .cost-row.free b{color:var(--green);font-weight:600}
+
+  /* CTA band */
+  .band{margin:30px 0 0;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:56px 40px;text-align:center}
+  .band h2{font-family:var(--fd);font-size:clamp(30px,4.5vw,46px);font-weight:600;letter-spacing:-.025em;margin:0 0 16px;line-height:1.05}
+  .band p{font-family:var(--fr);font-size:18px;color:var(--ink2);max-width:48ch;margin:0 auto 30px;line-height:1.5}
+
+  footer{padding:50px 0 60px;border-top:1px solid var(--line);margin-top:70px}
+  .foot-in{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+  .foot-in .brand{font-size:20px}
+  .foot-in p{font-family:var(--fm);font-size:12px;color:var(--mut);margin:0}
+
+  /* reveal on load */
+  .rv{opacity:0;transform:translateY(14px);animation:rv .7s cubic-bezier(.2,.7,.2,1) forwards}
+  @keyframes rv{to{opacity:1;transform:none}}
+  .d1{animation-delay:.05s}.d2{animation-delay:.13s}.d3{animation-delay:.21s}.d4{animation-delay:.29s}.d5{animation-delay:.37s}
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <div class="wrap head-in">
+    <div class="brand"><span class="mk"></span>JobMatch</div>
+    <nav class="nav">
+      <a href="#how">How it works</a>
+      <a href="#sources">Sources</a>
+      <a href="#cost">Cost</a>
+      <a class="cta" href="/app">Open the app →</a>
+    </nav>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow rv d1"><span class="pulse"></span>Scanning 50,000+ live roles right now</div>
+    <h1 class="rv d2">The job feed that actually <em>reads</em> the job.</h1>
+    <p class="lede rv d3">JobMatch pulls every open role from 500+ companies across the web, reads each full description with AI, and ranks the handful that genuinely fit you, so you stop scrolling job boards and start applying to the right ones.</p>
+    <div class="cta-row rv d4">
+      <a class="btn primary" href="/app">Open my ranked feed →</a>
+      <a class="btn ghost" href="#how">See how it works</a>
+    </div>
+    <p class="micro rv d4">No auto-apply. No spam. Every match is verified by AI on the full posting.</p>
+
+    <div class="stats rv d5" style="margin-top:48px">
+      <div class="stat"><b>50k+</b><span>live roles scanned</span></div>
+      <div class="stat"><b>500+</b><span>companies tracked</span></div>
+      <div class="stat"><b>7</b><span>ATS platforms + aggregator</span></div>
+      <div class="stat"><b>~$1</b><span>per full ranking run</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS / FUNNEL -->
+<section class="sec" id="how">
+  <div class="wrap">
+    <div class="sec-lbl">How it works</div>
+    <h2 class="sec-h">A funnel built so the expensive part stays tiny.</h2>
+    <p class="sec-p">Reading 50,000 descriptions with AI would cost hundreds of dollars. So JobMatch filters for free first, and only spends on the roles that survive. You get deep AI judgment on the jobs that matter, for about a dollar.</p>
+
+    <div class="funnel">
+      <div class="stage">
+        <div class="idx">01</div>
+        <div class="body"><h4>Pull everything</h4><p>Every open role from 500+ companies, in parallel, across 7 ATS platforms plus a keyword aggregator.</p></div>
+        <div class="vol">~50,000<s>roles · $0</s></div>
+      </div>
+      <div class="connector"></div>
+      <div class="stage">
+        <div class="idx">02</div>
+        <div class="body"><h4>Filter for free</h4><p>Rule-based prefilter and a sharp heuristic scorer rank all of them: whole-word skill matching, seniority and clearance signals.</p></div>
+        <div class="vol">~8,000<s>survive · $0</s></div>
+      </div>
+      <div class="connector"></div>
+      <div class="stage">
+        <div class="idx">03</div>
+        <div class="body"><h4>Read the full posting</h4><p>For the top candidates, JobMatch fetches the complete job description, not a snippet, so nothing important is missed.</p></div>
+        <div class="vol">top ~300<s>hydrated · $0</s></div>
+      </div>
+      <div class="connector"></div>
+      <div class="stage paid">
+        <span class="tag">the only paid step</span>
+        <div class="idx">04</div>
+        <div class="body"><h4>AI ranks the fit</h4><p>The AI scores each against your profile, writes why you fit, what's worth knowing, and your gaps. Only the AI can mark a role "strong."</p></div>
+        <div class="vol">~$1<s>per run</s></div>
+      </div>
+      <div class="connector"></div>
+      <div class="stage">
+        <div class="idx">05</div>
+        <div class="body"><h4>Your ranked feed</h4><p>Strong / possible / skip, with a ready-to-send outreach email drafted for every strong match.</p></div>
+        <div class="vol">your feed<s>cached, cheap re-runs</s></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-lbl">Why it's different</div>
+    <h2 class="sec-h">Most job tools match keywords. This one understands.</h2>
+
+    <div class="grid">
+      <div class="feat">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#176844" stroke-width="2"><path d="M4 19V5m0 14 6-4 5 3 5-6"/></svg></div>
+        <h4>Reads the whole job</h4>
+        <p>Before ranking, it fetches the full posting and feeds it to the AI, so a role that quietly requires a security clearance or 5+ years gets caught, not mislabeled a match.</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#176844" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h4>"Strong" means verified</h4>
+        <p>The free filter can never award "strong." Only the AI, after reading the full description, can. <span class="q">Every green match is one it actually analyzed.</span></p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#176844" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg></div>
+        <h4>Built from your profile</h4>
+        <p>Drop in your resume, or let your own AI describe you. JobMatch builds a structured profile, you verify it, and every ranking is judged against the real you.</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#176844" stroke-width="2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg></div>
+        <h4>Outreach, drafted</h4>
+        <p>Each strong match comes with a tailored email ready to send, plus a one-click LinkedIn recruiter search. You edit and send. Never auto-spammed.</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#176844" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <h4>Fresh on every refresh</h4>
+        <p>One click re-runs the whole pipeline. New roles appear and are flagged; everything you've seen persists. Cheap, because caching only pays for genuinely-new jobs.</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#176844" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <h4>Or rank for $0</h4>
+        <p>Bring your own AI: export your top jobs, paste them into the free web Claude or ChatGPT, paste the result back. Same ranked feed, zero API cost.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOURCES -->
+<section class="sec" id="sources" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-lbl">Coverage</div>
+    <h2 class="sec-h">It pulls from where jobs actually live.</h2>
+    <p class="sec-p">Clean, official sources only. No scraping of sites that ban it. Every role links straight to the real posting so you apply directly.</p>
+    <div class="sources">
+      <div class="t">Sourcing live roles across</div>
+      <div class="badges">
+        <span class="badge">Greenhouse</span>
+        <span class="badge">Lever</span>
+        <span class="badge">Ashby</span>
+        <span class="badge">SmartRecruiters</span>
+        <span class="badge">Recruitee</span>
+        <span class="badge">Workable</span>
+        <span class="badge">Workday</span>
+        <span class="badge agg">Adzuna aggregator</span>
+        <span class="badge agg">Curated new-grad lists</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO FIT CARD -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-lbl">What a match looks like</div>
+    <h2 class="sec-h">Every ranking explains itself.</h2>
+    <p class="sec-p">No black-box score. You see exactly why a role fits, what to be aware of, and where your gaps are, the way a sharp recruiter would tell you.</p>
+
+    <div class="demo">
+      <div class="demo-head">
+        <div>
+          <div class="demo-co">Loop · Greenhouse</div>
+          <div class="demo-ti">2026 New Grad · Software Engineer, Full-Stack</div>
+          <div class="demo-loc">Chicago, IL</div>
+        </div>
+        <div class="demo-ring"><b>88</b><s>FIT</s></div>
+      </div>
+      <div class="demo-body">
+        <p class="demo-lbl">Why you fit</p>
+        <ul class="demo-list pos">
+          <li><i>✓</i> Explicitly targets 2026 new grads. Timing lines up exactly.</li>
+          <li><i>✓</i> Full-stack overlap: React, TypeScript, Python, Node.js, FastAPI, PostgreSQL all present.</li>
+          <li><i>✓</i> Shipped real production software solo: App Store app and a live Chrome extension.</li>
+        </ul>
+        <p class="demo-lbl">Worth knowing</p>
+        <ul class="demo-list con">
+          <li><i>!</i> In-office 4 days/week in the Chicago metro. No relocation needed for you.</li>
+          <li><i>!</i> U.S. citizen, no sponsorship required. No visa risk.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COST -->
+<section class="sec" id="cost" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-lbl">The cost story</div>
+    <h2 class="sec-h">Deep AI ranking, for about a dollar.</h2>
+    <div class="cost">
+      <div class="l">
+        <h3>The funnel is the whole trick.</h3>
+        <p>Cost is set by how many jobs the AI reads, not how many exist. Filter 50,000 down to a few hundred for free, and the only paid step stays tiny. Re-runs are nearly free, because caching pays only for genuinely-new postings.</p>
+      </div>
+      <div class="r">
+        <div class="cost-row"><span>Standard run (top 100)</span><b>~$1</b></div>
+        <div class="cost-row"><span>Deep run (top 300)</span><b>~$2-3</b></div>
+        <div class="cost-row"><span>Cached re-run</span><b>~$0</b></div>
+        <div class="cost-row free"><span>Bring-your-own-AI mode</span><b>$0</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BAND -->
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="band">
+      <h2>Stop scrolling. Start matching.</h2>
+      <p>Open your ranked feed and see the roles that actually fit, read in full, ranked by AI, ready to apply.</p>
+      <a class="btn primary" href="/app" style="font-size:16px;padding:16px 30px">Open my ranked feed →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <div class="brand" style="font-size:20px"><span class="mk"></span>JobMatch</div>
+    <p>An AI job-matching engine · reads the full job, ranks the real fit</p>
+  </div>
+</footer>
+
+<script>
+  // header border on scroll
+  const hdr = document.getElementById('hdr');
+  const onScroll = () => hdr.classList.toggle('scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+</script>
+</body>
+</html>
