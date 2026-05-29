@@ -67,7 +67,7 @@ _refresh = {
 _refresh_lock = threading.Lock()
 
 
-def _run_refresh(profile_path, top_n=None):
+def _run_refresh(profile_path, top_n=None, draft=True):
     def progress(stage, pct, detail):
         with _refresh_lock:
             _refresh.update(stage=stage, pct=pct, detail=detail)
@@ -76,7 +76,7 @@ def _run_refresh(profile_path, top_n=None):
             _refresh.update(running=True, stage="Starting", pct=0, detail="",
                             started_at=time.time(), finished_at=None,
                             result=None, error=None)
-        summary = pipeline.run(profile_path, progress=progress, top_n=top_n)
+        summary = pipeline.run(profile_path, progress=progress, top_n=top_n, draft=draft)
         # Persist the freshly written pool to Postgres so it survives a redeploy
         # (the host's disk is ephemeral). Best-effort, never breaks the refresh.
         _persist_pool()
@@ -643,6 +643,88 @@ def cache_stats():
                 "seen": len(cache.get("seen", {}))}
     except Exception:
         return {"ranked": 0, "seen": 0}
+
+
+# ----------------------------------------------------- automatic free job scan
+# Everyone benefits from fresh jobs without anyone clicking Refresh, so on a
+# fixed schedule the server runs the FREE part of the pipeline (pull the newest
+# postings + keyword-score them) with top_n=0 and draft off, so it never spends
+# the API budget. The paid AI fit-rank stays on the manual, code-gated Refresh.
+# The countdown the UI shows is derived from the pool's last-updated time, which
+# every refresh (manual or scheduled) bumps, so the timer resets after each pull.
+SCAN_INTERVAL_HOURS = float(os.environ.get("SCAN_INTERVAL_HOURS", "24"))
+AUTO_SCAN = os.environ.get("AUTO_SCAN", "1") != "0"
+
+
+def _scan_profile_path():
+    """The profile the shared pool is shaped against, same resolution as refresh."""
+    for p in (os.environ.get("PROFILE_PATH", "my_profile.json"),
+              "my_profile.json", "profile.example.json"):
+        if p and os.path.exists(p):
+            return p
+    return "profile.example.json"
+
+
+def _last_scan_epoch():
+    """Epoch seconds of the last pool refresh: the Postgres pool's updated_at when
+    a DB is configured, else the committed file's mtime. None if neither exists."""
+    if db.has_db():
+        try:
+            with db.get_conn() as conn:
+                if conn:
+                    meta = db.pool_meta(conn)
+                    if meta and meta[1] is not None:
+                        return meta[1].timestamp()
+        except Exception:
+            pass
+    try:
+        if os.path.exists(RANKED_FILE):
+            return os.path.getmtime(RANKED_FILE)
+    except Exception:
+        pass
+    return None
+
+
+def _auto_scan_loop():
+    """Background loop: when the pool is older than the interval and no refresh is
+    already running, run the free pull. Polls once a minute so it survives restarts
+    (it reads the persisted last-scan time) and never double-runs with a manual
+    refresh (it respects the same running flag)."""
+    interval = SCAN_INTERVAL_HOURS * 3600
+    time.sleep(20)   # let the app finish starting before any heavy pull
+    while True:
+        try:
+            last = _last_scan_epoch()
+            due = (last is None) or (time.time() >= last + interval)
+            with _refresh_lock:
+                busy = _refresh["running"]
+            if due and not busy:
+                _run_refresh(_scan_profile_path(), top_n=0, draft=False)
+        except Exception:
+            pass
+        time.sleep(60)
+
+
+@app.get("/api/scan/schedule")
+def scan_schedule():
+    """Public: when the last free scan ran and when the next one is due, so the
+    feed can show a countdown to everyone. next_scan is null when auto-scan is off
+    (e.g. no database), in which case the UI shows 'updated X ago' instead."""
+    last = _last_scan_epoch()
+    with _refresh_lock:
+        running = _refresh["running"]
+    auto = bool(AUTO_SCAN and db.has_db())
+    nxt = (last + SCAN_INTERVAL_HOURS * 3600) if (last is not None and auto) else None
+    return {"last_scan": last, "next_scan": nxt,
+            "interval_hours": SCAN_INTERVAL_HOURS, "auto": auto, "running": running}
+
+
+@app.on_event("startup")
+def _start_auto_scan():
+    """Spin up the scheduler only on a real, DB-backed deployment. Tests use a
+    bare TestClient (no lifespan) and have no DB, so this never runs there."""
+    if db.has_db() and AUTO_SCAN:
+        threading.Thread(target=_auto_scan_loop, daemon=True).start()
 
 
 # ---------------------------------------------------------------- web UI

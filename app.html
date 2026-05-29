@@ -182,16 +182,15 @@
   .rankbanner .rb-t b{color:var(--ink);font-weight:800}
   .rankbanner .rb-btn{flex-shrink:0;font-family:var(--fu);font-size:13px;font-weight:700;color:#08120c;background:var(--green);border:none;border-radius:9px;padding:9px 14px;cursor:pointer;transition:opacity .15s}
   .rankbanner .rb-btn:hover{opacity:.9}
-  .guide{background:var(--card);border:1px solid var(--line2);border-radius:14px;margin-bottom:16px;overflow:hidden}
-  .guide-row{display:flex;align-items:center;gap:12px;padding:12px 14px}
-  .guide-row + .guide-row{border-top:1px solid var(--line)}
-  .guide-ic{flex-shrink:0;width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center}
-  .guide-ic.verify{background:var(--greenbg);border:1px solid var(--greenln);color:var(--green)}
-  .guide-ic.new{background:var(--amberbg);border:1px solid var(--amberln);color:var(--amber)}
-  .guide-tx{flex:1;font-family:var(--fu);font-size:12.5px;color:var(--ink2);line-height:1.45}
-  .guide-tx b{color:var(--ink);font-weight:800}
-  .guide-btn{flex-shrink:0;font-family:var(--fu);font-size:12.5px;font-weight:700;color:#08120c;background:var(--green);border:none;border-radius:9px;padding:8px 13px;cursor:pointer;transition:opacity .15s;white-space:nowrap}
-  .guide-btn:hover{opacity:.9}
+  .fbar{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line2);border-radius:12px;padding:9px 13px;margin-bottom:16px;flex-wrap:wrap}
+  .fbar-item{display:flex;align-items:center;gap:9px;font-family:var(--fu);font-size:13px;color:var(--ink2)}
+  .fbar-item b{color:var(--ink);font-weight:800}
+  .fbar-ic{flex-shrink:0;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+  .fbar-item.verify .fbar-ic{background:var(--greenbg);border:1px solid var(--greenln);color:var(--green)}
+  .fbar-item.fresh .fbar-ic{background:var(--amberbg);border:1px solid var(--amberln);color:var(--amber)}
+  .fbar-sp{flex:1;min-width:8px}
+  .fbar-btn{flex-shrink:0;font-family:var(--fu);font-size:12.5px;font-weight:700;color:#08120c;background:var(--green);border:none;border-radius:8px;padding:7px 12px;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+  .fbar-btn:hover{opacity:.9}
   .modal.wide{max-width:560px;text-align:left}
   .modal.wide h2{text-align:left}
   .modal.wide p{text-align:left}
@@ -260,7 +259,7 @@
       <span class="depth-val" id="depthVal">100</span>
     </div>
     <div class="depth-legend" id="depthLegend"></div>
-    <div class="depth-note"><b>Refresh</b> pulls the newest openings into your feed; this slider only sets how many of the top the AI reads in full. Green is already read and free; amber is the new depth, the only part that costs. The latest jobs come in at any depth, so you go deeper only to verify more of them.</div>
+    <div class="depth-note">Pulls the newest openings, then has the AI read this many of the top in full. Green is cached and free; amber is the new depth you pay for.</div>
   </div></div></div>
   <div class="wrap"><div class="prog" id="prog"><div class="prog-in">
     <div class="prog-row"><span class="prog-stage" id="progStage">Starting…</span><span class="prog-detail" id="progDetail"></span></div>
@@ -361,13 +360,15 @@ function renderLock(){
   const lb=document.getElementById("lockBtn");
   const ll=document.getElementById("lockLabel");
   const rb=document.getElementById("refreshBtn");
-  // The Refresh button and depth slider are visible to everyone; running a
-  // refresh still requires the access code (onRefreshClick prompts for it).
-  document.getElementById("depthPanel").classList.add("open");
+  const dp=document.getElementById("depthPanel");
+  // The scan-depth slider only matters when you can actually run a refresh, so
+  // it stays collapsed until unlocked. New jobs arrive on the auto-scan anyway.
   if(UNLOCKED){
+    if(dp) dp.classList.add("open");
     lb.classList.add("unlocked"); ll.textContent="Unlocked";
     rb.classList.remove("locked");
   }else{
+    if(dp) dp.classList.remove("open");
     lb.classList.remove("unlocked"); ll.textContent="Unlock";
     rb.classList.add("locked");
   }
@@ -491,6 +492,12 @@ function counts(){const src=searchedJobs();const c={all:src.length,strong:0,poss
 /* ---------- bring-your-own-AI ranking ---------- */
 /* The banner only shows on a visitor's heuristic feed that still has unverified
    estimates. The owner (paid Refresh) and verified feeds never see it. */
+function fmtDur(secs){
+  secs = Math.max(0, Math.round(secs));
+  if(secs < 60) return "under a minute";
+  const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60);
+  return h>0 ? (h+"h "+m+"m") : (m+"m");
+}
 function renderRankBanner(){
   const wrap = document.getElementById("rankBannerWrap");
   if(!wrap) return;
@@ -498,31 +505,70 @@ function renderRankBanner(){
   if(SOURCE !== "heuristic"){ wrap.innerHTML = ""; return; }
   const total = JOBS.length;
   const un = JOBS.filter(j=>!verified(j)).length;
-  const check='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  const refresh='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
-  // Row 1: verify what you already have (free). Adapts to how many are estimates.
-  let verifyRow = "";
+  const check='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  const refresh='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
+  // Verify: confirm what's already in your feed, free. Detail lives in the tooltip.
+  const vTip = "Have your own ChatGPT or Claude confirm your top matches in full, for free. It reads roles you already have, it does not pull new ones.";
+  let verify;
   if(un > 0){
-    verifyRow =
-      '<div class="guide-row">'+
-        '<span class="guide-ic verify">'+check+'</span>'+
-        '<span class="guide-tx"><b>Verify your matches.</b> '+un+' of your '+total+' roles are keyword estimates. Have your own ChatGPT or Claude confirm them in full, free. This reads roles you already have, it does not pull new ones.</span>'+
-        '<button class="guide-btn" onclick="openRank()">Rank with my AI</button>'+
+    verify =
+      '<div class="fbar-item verify" title="'+vTip+'">'+
+        '<span class="fbar-ic">'+check+'</span>'+
+        '<span class="fbar-tx"><b>'+un+'</b> on estimates</span>'+
+        '<button class="fbar-btn" onclick="openRank()">Rank with my AI</button>'+
       '</div>';
-  } else if(total > 0){
-    verifyRow =
-      '<div class="guide-row">'+
-        '<span class="guide-ic verify">'+check+'</span>'+
-        '<span class="guide-tx"><b>Your matches are verified.</b> All '+total+' have been read in full by your AI. To look for newer roles, refresh below.</span>'+
+  } else {
+    verify =
+      '<div class="fbar-item verify" title="Every role in your feed has been read in full by your AI.">'+
+        '<span class="fbar-ic">'+check+'</span>'+
+        '<span class="fbar-tx">All <b>'+total+'</b> verified</span>'+
       '</div>';
   }
-  // Row 2: how new openings get in (always shown so the model is clear).
-  const newRow =
-    '<div class="guide-row">'+
-      '<span class="guide-ic new">'+refresh+'</span>'+
-      '<span class="guide-tx"><b>Find new openings.</b> The Refresh button pulls the latest postings into your feed; the scan-depth slider above sets how many the AI reads. Running it needs the access code.</span>'+
+  // Fresh: the countdown to the next automatic scan (or how long since the last).
+  const fTip = "New openings are pulled in automatically on a schedule. Refresh (top right, needs the code) pulls them now.";
+  let label;
+  if(AUTO_SCAN_ON && NEXT_SCAN){
+    const secs = NEXT_SCAN - Date.now()/1000;
+    label = secs > 45 ? ("Next scan in <b>"+fmtDur(secs)+"</b>") : "Scanning for new jobs<b>\u2026</b>";
+  } else if(LAST_SCAN){
+    label = "Jobs updated <b>"+fmtDur(Date.now()/1000 - LAST_SCAN)+" ago</b>";
+  } else {
+    label = "<b>"+total+"</b> live roles";
+  }
+  const fresh =
+    '<div class="fbar-item fresh" title="'+fTip+'">'+
+      '<span class="fbar-ic">'+refresh+'</span>'+
+      '<span class="fbar-tx">'+label+'</span>'+
     '</div>';
-  wrap.innerHTML = '<div class="guide">'+verifyRow+newRow+'</div>';
+  wrap.innerHTML = '<div class="fbar">'+verify+'<div class="fbar-sp"></div>'+fresh+'</div>';
+}
+
+/* The next-scan countdown. Derived from /api/scan/schedule (the pool's last
+   refresh + the interval), ticking client-side so it stays a clean countdown. */
+let NEXT_SCAN = null, LAST_SCAN = null, AUTO_SCAN_ON = false, SCAN_TICK = null;
+async function fetchSchedule(){
+  try{
+    const s = await fetch(API+"/api/scan/schedule").then(r=>r.json());
+    LAST_SCAN    = (typeof s.last_scan === "number") ? s.last_scan : null;
+    NEXT_SCAN    = (typeof s.next_scan === "number") ? s.next_scan : null;
+    AUTO_SCAN_ON = !!s.auto;
+  }catch(e){ NEXT_SCAN = null; AUTO_SCAN_ON = false; }
+  renderRankBanner();
+  if(!SCAN_TICK) SCAN_TICK = setInterval(tickScan, 30000);
+}
+function tickScan(){
+  renderRankBanner();
+  // Once the timer is up, re-check the schedule; if a fresh scan landed, pull the
+  // new jobs into the feed so they appear without a manual reload.
+  if(AUTO_SCAN_ON && NEXT_SCAN && (Date.now()/1000 > NEXT_SCAN + 5)){
+    fetch(API+"/api/scan/schedule").then(r=>r.json()).then(s=>{
+      const nl = (typeof s.last_scan === "number") ? s.last_scan : null;
+      AUTO_SCAN_ON = !!s.auto;
+      NEXT_SCAN = (typeof s.next_scan === "number") ? s.next_scan : NEXT_SCAN;
+      if(nl && LAST_SCAN && nl > LAST_SCAN){ LAST_SCAN = nl; loadJobs(); }
+      renderRankBanner();
+    }).catch(()=>{});
+  }
 }
 
 let RANK_N = 25;
@@ -749,6 +795,7 @@ async function signOut(){
 updateDepth();
 fetchCacheStats();
 checkUnlock();
+fetchSchedule();
 loadMe();
 loadJobs();
 </script>

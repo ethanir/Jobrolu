@@ -52,13 +52,18 @@ def _linkedin_recruiter_search(company):
     return f"https://www.linkedin.com/search/results/people/?keywords={q}"
 
 
-def enrich_jobs(jobs, profile, cache, limit=15):
+def enrich_jobs(jobs, profile, cache, limit=15, draft=True):
     """For strong-tier jobs: find contacts (if Apollo set) + draft a tailored email.
     Drafts are cached by job id so re-runs don't re-pay. Every job also gets a
-    one-click LinkedIn recruiter-search link so the user never has to think."""
+    one-click LinkedIn recruiter-search link so the user never has to think.
+    draft=False keeps the free recruiter links but skips the paid email drafting,
+    so the scheduled background scan stays $0."""
     for j in jobs:
         j.setdefault("contacts", [])
         j["linkedin_search"] = _linkedin_recruiter_search(j.get("company", ""))
+
+    if not draft:
+        return jobs
 
     strong = [j for j in jobs if (j.get("fit") or {}).get("tier") == "strong"][:limit]
     if not strong:
@@ -98,11 +103,13 @@ def fmt_date(ts):
     return datetime.date.fromtimestamp(ts).isoformat() if ts else ""
 
 
-def run(profile_path="profile.example.json", progress=None, top_n=None):
+def run(profile_path="profile.example.json", progress=None, top_n=None, draft=True):
     """Run the full pipeline. Importable (used by server.py refresh) and CLI.
 
     progress: optional callback(stage:str, pct:int, detail:str) for live UI updates.
     top_n:    override TOP_N (how many jobs the LLM ranks); defaults to env/100.
+    draft:    when False, skip the paid email drafting (the scheduled scan uses
+              this with top_n=0 to pull and score new jobs for $0).
     Returns a summary dict. Writes ranked_jobs.json / .csv as a side effect.
     The cache preserves previously-seen jobs, so re-runs APPEND new postings
     (flagged is_new) without dropping the old ones, and never re-pay for a job
@@ -201,7 +208,7 @@ def run(profile_path="profile.example.json", progress=None, top_n=None):
     ))
 
     emit("Finding recruiters + drafting", 88, "strong matches")
-    all_jobs = enrich_jobs(all_jobs, profile, cache)
+    all_jobs = enrich_jobs(all_jobs, profile, cache, draft=draft)
     jobcache.save(cache)                   # save AFTER drafts are cached too
 
     with open("ranked_jobs.json", "w") as f:
