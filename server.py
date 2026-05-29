@@ -958,7 +958,7 @@ async def onboard_resume(request: Request, file: UploadFile = File(...)):
 # overlays a user's stored rankings (Phase 3); these two endpoints produce and
 # store them. The prompt format mirrors export_rank.py / import_rank.py so the
 # web flow and the CLI stay consistent.
-RANK_EXPORT_MAX = 40          # most jobs we ask a web chat to score at once
+RANK_EXPORT_MAX = 50          # most jobs we ask a web chat to score at once
 RANK_IMPORT_MAX = 200         # hard cap on rankings accepted per import call
 _VALID_TIERS = ("strong", "possible", "skip")
 

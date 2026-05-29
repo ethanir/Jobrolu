@@ -190,7 +190,9 @@
   .rankstep .rn{flex-shrink:0;width:24px;height:24px;border-radius:99px;background:var(--greenbg);border:1px solid var(--greenln);color:var(--green);font-family:var(--fd);font-weight:600;font-size:12px;display:flex;align-items:center;justify-content:center}
   .rankstep .rt{font-family:var(--fu);font-size:13.5px;color:var(--ink2);line-height:1.5;padding-top:1px}
   .rankstep .rt b{color:var(--ink);font-weight:700}
-  .rankbox{position:relative;margin:6px 0 14px}
+  .rankbox{margin:6px 0 14px}
+  .rankbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .rankbar-label{font-family:var(--fu);font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
   .rankbox textarea.promptview{width:100%;height:130px;background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:14px;color:var(--mut);font-family:var(--fu);font-size:12px;line-height:1.5;resize:vertical;outline:none;white-space:pre}
   .rankn{background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:13px 15px;margin:4px 0 16px}
   .rankn-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
@@ -200,8 +202,9 @@
   .rankn-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--green);border:none;cursor:pointer;box-shadow:0 0 0 4px rgba(79,227,155,.16)}
   .rankn-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--green);border:none;cursor:pointer}
   .rankn-warn{font-family:var(--fu);font-size:11.5px;color:var(--mut);margin-top:9px;line-height:1.5}
-  .rankcopy{position:absolute;top:10px;right:10px;font-family:var(--fu);font-size:12px;font-weight:700;color:var(--green);background:var(--greenbg);border:1px solid var(--greenln);border-radius:8px;padding:6px 12px;cursor:pointer;z-index:2}
-  .rankcopy.done{color:#08120c;background:var(--green)}
+  .rankcopy{display:inline-flex;align-items:center;gap:6px;font-family:var(--fu);font-size:12.5px;font-weight:700;color:var(--green);background:var(--greenbg);border:1px solid var(--greenln);border-radius:8px;padding:7px 13px;cursor:pointer;transition:background .15s,color .15s}
+  .rankcopy:hover{background:var(--greenln)}
+  .rankcopy.done{color:#08120c;background:var(--green);border-color:var(--green)}
   .modal.wide textarea{width:100%;min-height:96px;background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:13px;color:var(--ink);font-family:var(--fu);font-size:12.5px;line-height:1.5;resize:vertical;outline:none}
   .modal.wide textarea:focus{border-color:var(--greenln)}
   .modal-msg.ok{color:var(--green)}
@@ -292,16 +295,22 @@
   <div class="modal wide" style="position:relative">
     <button class="modal-x" onclick="closeRank()" aria-label="close">×</button>
     <h2>Rank these with your own AI</h2>
-    <p>Your feed is keyword estimates right now. Have your own ChatGPT or Claude score your top matches in full, for free. It takes about a minute.</p>
+    <p>Your feed is keyword estimates right now. Have your own ChatGPT or Claude score your top unverified roles in full, for free. Save them, then run this again any time to verify the next batch.</p>
     <div class="rankn">
       <div class="rankn-top"><span class="rankn-label">Jobs to send</span><span class="rankn-val" id="rankNVal">25</span></div>
-      <input class="rankn-slider" type="range" id="rankNSlider" min="5" max="40" step="5" value="25" oninput="setRankN(this.value)"/>
-      <div class="rankn-warn">Sending more is fine, but some AIs cut off a long reply. If the result you paste looks incomplete, lower this and try again.</div>
+      <input class="rankn-slider" type="range" id="rankNSlider" min="5" max="50" step="5" value="25" oninput="setRankN(this.value)"/>
+      <div class="rankn-warn" id="rankNWarn">This sends your top unverified roles. Some AIs cut off a long reply, so if the result you paste looks incomplete, lower this and try again.</div>
     </div>
     <div class="ranksteps" id="rankSteps">
       <div class="rankstep"><div class="rn">1</div><div class="rt"><b>Copy this prompt</b> and paste it into ChatGPT or Claude (free web version is fine), then send.</div></div>
       <div class="rankbox">
-        <button class="rankcopy" id="rankCopyBtn" onclick="copyRankPrompt()">Copy</button>
+        <div class="rankbar">
+          <span class="rankbar-label">Prompt for your AI</span>
+          <button class="rankcopy" id="rankCopyBtn" onclick="copyRankPrompt()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+          </button>
+        </div>
         <textarea class="promptview" id="rankPrompt" readonly onclick="this.select()">Loading your top matches...</textarea>
       </div>
       <div class="rankstep"><div class="rn">2</div><div class="rt"><b>Copy the JSON</b> your AI returns and <b>paste it below</b>, then save.</div></div>
@@ -490,7 +499,19 @@ function openRank(){
   document.getElementById("rankBg").classList.add("show");
   document.getElementById("rankMsg").textContent = "";
   document.getElementById("rankIn").value = "";
+  updateRankInfo();
   loadRankPrompt();
+}
+function rankUnverified(){ return JOBS.filter(j=>!verified(j)).length; }
+function updateRankInfo(){
+  const w=document.getElementById("rankNWarn"); if(!w) return;
+  const un=rankUnverified();
+  const tail=" Some AIs cut off a long reply, so if the result you paste looks incomplete, lower this and try again.";
+  if(un<=RANK_N){
+    w.textContent = "This sends all "+un+" of your roles still on estimates."+tail;
+  }else{
+    w.textContent = "You have "+un+" roles on estimates. This sends your top "+RANK_N+"; save them, then run this again for the next batch."+tail;
+  }
 }
 function loadRankPrompt(){
   const pre = document.getElementById("rankPrompt");
@@ -503,6 +524,7 @@ function loadRankPrompt(){
 function setRankN(v){
   RANK_N = parseInt(v,10) || 25;
   document.getElementById("rankNVal").textContent = RANK_N;
+  updateRankInfo();
   loadRankPrompt();
 }
 function closeRank(){ document.getElementById("rankBg").classList.remove("show"); }
@@ -527,7 +549,11 @@ function saveRank(){
         msg.className="modal-msg ok";
         msg.textContent = "Saved "+d.saved+" ranking"+(d.saved===1?"":"s")+". Updating your feed...";
         RANK_PROMPT=""; // force a fresh prompt next time (those jobs are now verified)
-        setTimeout(()=>{ RANK_SAVING=false; btn.disabled=false; btn.textContent=label; closeRank(); loadJobs(); toast("Feed updated with your AI rankings"); }, 700);
+        const remaining = Math.max(0, rankUnverified() - d.saved);
+        setTimeout(()=>{ RANK_SAVING=false; btn.disabled=false; btn.textContent=label; closeRank(); loadJobs();
+          toast(remaining>0
+            ? ("Saved. "+remaining+" more on estimates, open Rank with my AI for the next batch.")
+            : "Saved. Your feed is verified."); }, 700);
       }else{
         RANK_SAVING=false; btn.disabled=false; btn.textContent=label;
         msg.className="modal-msg"; msg.textContent = d.error || "Couldn't save those rankings.";
