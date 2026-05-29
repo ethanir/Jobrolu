@@ -381,6 +381,8 @@ def _scored_base(profile):
             "is_new": j.get("is_new", False),
             "_score": j.get("_score", 0),
             "_matched": j.get("_matched", []),
+            "_why": j.get("_why", []),
+            "_flags": j.get("_flags", []),
         })
     with _BASE_LOCK:
         if len(_BASE_CACHE) >= _BASE_MAX_PROFILES and key not in _BASE_CACHE:
@@ -1090,6 +1092,31 @@ def _rank_candidates(user_id, profile, limit):
     return out
 
 
+def _candidate_brief(profile):
+    """One honest line describing the candidate's level + authorization, so the AI
+    scores against THIS person (a new grad, a senior, whoever) rather than a fixed
+    'early-career' assumption. Mirrors score.desired_level."""
+    try:
+        import score as _score
+        level = _score.desired_level(profile)
+    except Exception:
+        level = "mid"
+    titles = ", ".join(str(t) for t in (profile.get("target_titles") or [])) or "software roles"
+    yrs = profile.get("years_experience")
+    phrase = {"intern": "an internship candidate",
+              "entry": "an early-career / new-grad candidate",
+              "mid": "a mid-level candidate",
+              "senior": "a senior candidate"}.get(level, "a mid-level candidate")
+    bits = [f"This candidate is {phrase}"]
+    if yrs not in (None, ""):
+        bits.append(f"with about {yrs} years of experience")
+    bits.append(f"targeting: {titles}.")
+    line = " ".join(bits)
+    if profile.get("requires_sponsorship"):
+        line += " They require visa sponsorship, so a role that explicitly does not sponsor is a skip."
+    return line, level
+
+
 def _build_rank_prompt(profile, jobs):
     """The exact prompt a visitor pastes into their own AI. Same shape as
     export_rank.py: a JSON array of {id, score, tier, reasons, matched_skills,
@@ -1103,12 +1130,26 @@ def _build_rank_prompt(profile, jobs):
         "preferences": profile.get("preferences"),
         "projects": [p.get("name") for p in (profile.get("projects") or []) if isinstance(p, dict)],
     }
+    brief, level = _candidate_brief(profile)
+    # The seniority rule is written to match THIS candidate, not a fixed persona.
+    if level in ("entry", "intern"):
+        seniority_rule = ("A role needing 5+ years, or a senior/staff/lead/principal/"
+                          "manager title, is a skip for this candidate.")
+    elif level == "senior":
+        seniority_rule = ("A junior, new-grad, or internship role is a poor fit (the "
+                          "candidate is over-qualified); score it low.")
+    else:
+        seniority_rule = ("A senior/staff/lead/principal title is usually a stretch, "
+                          "and an internship is a poor fit; score those low.")
     lines = [
         "You are an expert technical recruiter. Score how well THIS candidate "
         "fits EACH job below. Be honest and strict: correctly rejecting a bad "
-        "fit is more useful than inflating a score. A new grad applying to a 5+ "
-        "year role is a skip. Senior, staff, lead, or manager titles are a skip "
-        "for an early-career candidate.",
+        "fit is more useful than inflating a score.",
+        brief,
+        seniority_rule,
+        "Judge on: title/role match, how many required skills the candidate has, "
+        "seniority fit, and location vs their preferences. If a posting has little "
+        "or no description, score from the title and say the detail was limited.",
         "",
         "Return ONLY a JSON array, one object per job, in this exact shape, and "
         "nothing else:",

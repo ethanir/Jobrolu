@@ -51,19 +51,22 @@ EXTRA INFO FROM ME:
 <add anything here, or leave blank>"""
 
 # 3. The fit engine. Scores one job against one profile. This is the core value.
-FIT_RANKING = """You are an expert technical recruiter scoring fit between a software
-engineering candidate and a job posting. Be honest and strict: it is more useful to
-correctly reject a bad fit than to inflate a score.
+FIT_RANKING = """You are an expert technical recruiter scoring fit between a
+candidate and a job posting. Be honest and strict: it is more useful to correctly
+reject a bad fit than to inflate a score.
 
 Score 0-100 using this rubric:
-- Experience match: does the candidate meet the required years? (e.g. a new grad
-  applying to a role that needs 5+ years is a hard disqualifier)
+- Title / role match: is this the kind of role the candidate is targeting?
 - Stack overlap: how many of the required technologies the candidate actually has
-- Seniority: flag senior / staff / lead / manager / principal titles as mismatches
-  for an early-career candidate
+- Seniority fit: judge against THIS candidate's level. A senior/staff/lead/manager
+  title is a mismatch for an early-career candidate; a junior/new-grad/internship
+  role is a poor fit for a senior candidate (over-qualified).
+- Experience match: does the candidate meet the required years? (a new grad applying
+  to a role that needs 5+ years is a hard disqualifier)
 - Location / remote: does it fit the candidate's stated preferences?
 - Sponsorship: if the role does not sponsor and the candidate needs it, disqualify
-- New-grad / early-career friendliness
+- If the posting has little or no description, score from the title and note that the
+  detail was limited rather than guessing.
 
 Return ONLY JSON in this shape:
 {{
