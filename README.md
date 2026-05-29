@@ -35,17 +35,18 @@ The whole design exists to keep cost near zero while still using AI where it mat
         |
         v
   SOURCING                    7 ATS APIs + Adzuna aggregator + curated lists, self-growing
-        |                     company registry. ~8k-50k live roles pulled in parallel.   $0
+        |                     company registry. ~8,000+ live roles from 500+ companies.  $0
         v
   PREFILTER                   free, rule-based. Drops non-SWE titles, senior roles,
         |                     wrong locations.                                            $0
         v
-  FREE HEURISTIC SCORE        score.py rates EVERY surviving job by keyword/title/
-        |                     new-grad/seniority/location. Ranks them best-first.         $0
+  FREE HEURISTIC SCORE        score.py rates EVERY job against YOUR profile: title fit
+        |                     (dominant), your skills, seniority matched to your own
+        |                     level, location. Works for any resume. Ranks best-first.    $0
         v
-  AI FIT-RANK (top N only)    rank.py sends only the top N to the LLM, which reads the
-        |                     full posting and scores the real fit. N is set live by the
-        |                     in-app scan-depth slider (default 100).               ~$1+ per run
+  AI FIT-RANK (top N only)    sends only the top N to the LLM, which reads the FULL
+        |                     posting and scores the real fit. Free in-app via your own
+        |                     AI ("Rank my matches", top 150); paid via TOP_N.    ~$1+ paid run
         v
   CACHE                       jobcache.py remembers every AI ranking, so re-runs only
         |                     pay for genuinely new jobs.                          near $0 after
@@ -93,11 +94,10 @@ So a green `88` with "AI verified" is a real judgment. A grey `~78` with "Estima
 
 ### Turning estimates into verified scores
 
-Only the top N jobs get AI-read, and at free-scoring time most jobs are ranked on their **title** alone, since full descriptions are only fetched for the jobs about to be AI-read. So a genuinely good role with a plain or unusual title can sit just outside the cutoff and stay an estimate. Three ways to verify deeper:
+The free pass ranks the whole pool, but only your top matches are AI-read, and a genuinely good role with a plain or unusual title can sit lower until an AI reads it. Two ways to verify:
 
-- **The scan-depth slider** (in the app). A slider sets how many top roles the AI reads on the next refresh, and shows a live estimate of the cost, time, and likely strong matches before you run. Running a refresh needs the access code, but the slider and estimate are visible to everyone. This is the main lever, and it is exactly what reaches the good roles a title-only score under-rated.
-- **`TOP_N`** for command-line runs (see the cost model below).
-- **Bring-your-own-AI, right in the app.** On a personalized feed, "Rank with my AI" hands you a ready-made prompt to paste into your own ChatGPT or Claude; paste the JSON back and your top matches become verified fits, stored as yours, for **$0**. It works through your top *unverified* roles in batches, so you save one batch and run it again for the next. (The `export_rank.py` / `import_rank.py` CLI does the same from the command line.)
+- **Bring-your-own-AI, right in the app (free).** On your feed, **Rank my matches** hands you a ready-made prompt covering your top 150 roles, each with its full description, to paste into your own ChatGPT or Claude. Paste the JSON back and those roles become verified fits, stored as yours, for **$0**. (The `export_rank.py` / `import_rank.py` CLI does the same from the command line.)
+- **`TOP_N`** for a paid command-line run that reads deeper into the pool (see the cost model below).
 
 ---
 
@@ -110,9 +110,9 @@ Only the AI fit-rank step costs money. Everything else (sourcing, prefilter, heu
 | 100 (default) | top 100 | ~$1 | ~$0 |
 | 300 | top 300 | ~$2-3 | ~$0 |
 | 800 (deep sweep) | top 800 | ~$8 | ~$0 |
-| 0 + web-AI export | top 25-50, free web chat | **$0** | $0 |
+| Rank my matches | top 150, your own AI | **$0** | $0 |
 
-In the app, the **scan-depth slider** sets this per run and shows a live, cache-aware estimate of cost, time, and likely matches before you commit. Because already-scanned jobs are cached and free, the estimate counts only depth beyond what has already been read, so a repeat at the same depth reads as **~$0**. You pay only when you drag the slider deeper than you have scanned before. The server hard-caps any single run at 2000 jobs as a backstop, and an Anthropic spend cap is the final ceiling.
+In the app, the free **Rank my matches** flow (your own AI, top 150) costs **$0** and is the default way to verify. Paid depths above are set with `TOP_N` on the host for deeper command-line sweeps. The **cache** makes repeats free: a job already AI-read is never paid for again, so a re-run only pays for genuinely new jobs. The server hard-caps any single run at 2000 jobs as a backstop, and an Anthropic spend cap is the final ceiling.
 
 The **cache** (`jobcache.py`) is what keeps it cheap: each posting has a stable id, and once the AI ranks it, the result is reused forever. Re-runs only pay for jobs that are genuinely new since last time.
 
@@ -125,10 +125,10 @@ Resume parsing on profile upload is one small LLM call (cents). It reads even sc
 Everyone has an equal account; there is no special owner tier. The model is simple:
 
 - **Create an account, then build a profile.** Sign up with an email and password, then build your profile (a quick form, a resume upload, or letting your own AI describe you). The feed is gated: you must be signed in, and you need a profile, so nobody lands on a wall of unranked jobs or sees someone else's scores.
-- **Sign in and sign out.** Passwords are hashed (PBKDF2-HMAC-SHA256, stdlib, no extra dependency) with a per-user salt and verified in constant time; the session is a signed, HttpOnly cookie. Building a profile before signing up is preserved, since an account reuses the browser's id.
+- **Sign in and sign out.** Passwords are hashed (PBKDF2-HMAC-SHA256, stdlib, no extra dependency) with a per-user salt and verified in constant time; the session is a signed, HttpOnly cookie. A profile built before signing up is kept, but a second account created on the same browser gets its own identity, so accounts never overwrite each other and one account never sees another's profile.
 - **Your feed is yours.** Once you have a profile, you see the shared job pool ranked for *you* by the free heuristic, plus any roles you have personally verified. New jobs show as estimates until you verify them.
-- **Verifying is free for everyone.** "Rank with my AI" turns your top matches into verified fits using your own ChatGPT or Claude, at no cost, with a slider for how many to send. Those verified rankings are stored against your profile and overlay your feed. Resume upload is open to every signed-in account.
-- **Refresh is the one budget-spending action.** The Refresh button is visible to everyone, but re-running the full pipeline spends the deployment's API budget, so it stays behind the access code: click Refresh, enter the code once, and it runs. The single-role scan is gated the same way. A spend cap in the Anthropic console is the hard ceiling.
+- **Verifying is free for everyone.** **Rank my matches** turns your top 150 roles into verified fits using your own ChatGPT or Claude, at no cost; it sends each role's full description so the AI judges the complete posting. Those verified rankings are stored against your profile and overlay your feed. Resume upload is open to every signed-in account.
+- **The job pool refreshes itself.** New roles are pulled and heuristic-ranked automatically on a schedule (free, no AI), so the feed stays current on its own; the app shows a live countdown to the next scan. Any action that spends the deployment's API budget stays behind the access code, and a spend cap in the Anthropic console is the hard ceiling.
 - **The shared pool is durable.** Each Refresh writes the resulting pool to Postgres, not just the host's disk, so a redeploy never reverts it. The feed reads the pool from Postgres (falling back to the committed file when the database is empty or off) and caches it in memory, so it is not re-parsed on every request.
 
 Configure on the host (Railway) with env vars:
@@ -136,10 +136,15 @@ Configure on the host (Railway) with env vars:
 | Variable | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | Required, powers ranking and drafts |
-| `ACCESS_CODE` | The code required to run a Refresh (and scan); the Refresh button is visible to all, but only runs with this. Refresh is open to anyone if unset |
+| `ACCESS_CODE` | The code that gates any action which spends the API budget (a paid refresh or single-role scan). Those actions are open to anyone if unset |
 | `COOKIE_SECRET` | Fixed random string so sessions and the refresh unlock survive redeploys |
 | `DATABASE_URL` | Postgres for accounts, per-user profiles, per-user rankings, and the durable shared job pool (with no database set, the site serves the committed file feed and skips accounts, for local dev) |
 | `DB_POOL_MAX` | Optional. Max pooled DB connections (default 10) |
+| `SCAN_INTERVAL_HOURS` | Optional. Hours between automatic free job pulls (default 24) |
+| `AUTO_SCAN` | Optional. Set to `0` to disable the automatic scheduled pull (default on) |
+| `PROFILE_PATH` | Optional. The owner profile file the command-line pipeline reads (default `my_profile.json`) |
+| `ENRICH_DESCRIPTIONS` | Optional. Set to `1` to fetch full descriptions for boards that omit them (SmartRecruiters, Workday) before ranking |
+| `OWNER_USER_ID` | Optional. A fixed random id that marks the owner across devices |
 
 API keys live only in the host's private environment, never in this repo.
 
@@ -150,6 +155,8 @@ API keys live only in the host's private environment, never in this repo.
 Live roles are pulled in parallel from **7 ATS platforms** (Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, Workable, Workday) plus the **Adzuna** keyword aggregator and curated new-grad lists.
 
 The **self-growing registry** (`registry.py`) reads the ATS token out of every job URL it ingests, so the company list compounds automatically. Widen coverage on demand with `seed.py`, `bulk_seed.py`, or `seed_workday.py` (all $0 API, validated against live boards).
+
+A few boards (SmartRecruiters, Workday) leave the description out of their list feed. `enrich_desc.py` can fetch the full posting from their detail pages for the roles about to be ranked, so the AI reads the complete text on those too (enable with `ENRICH_DESCRIPTIONS=1`).
 
 Out of scope by design: LinkedIn and Indeed forbid scraping. The right way to use those is applying directly, by hand.
 
@@ -186,8 +193,9 @@ jobrolu/
 ├── registry.py      self-growing company -> token registry
 ├── seed*.py         widen the registry ($0 API, validated)
 ├── prefilter.py     free rule-based cut before any AI call
-├── score.py         free heuristic scorer (gives the "estimate" numbers)
+├── score.py         free, profile-derived heuristic scorer (gives the "estimate" numbers)
 ├── hydrate.py       fetch full job descriptions before AI ranking ($0)
+├── enrich_desc.py   backfill full descriptions for boards that omit them (SmartRecruiters, Workday)
 ├── rank.py          AI fit-ranking (gives the "AI verified" numbers, the only paid step)
 ├── jobcache.py      seen-job + ranking cache, so re-runs only pay for new jobs
 ├── enrich.py        recruiter contacts (optional Apollo) + outreach draft
@@ -198,7 +206,7 @@ jobrolu/
 ├── landing.html     marketing landing page (served at /)
 ├── signin.html      create account / sign in
 ├── start.html       Profile tab: build or edit your profile (form, resume, or bring-your-own-AI)
-├── app.html         Live Feed tab (sign-in + profile gated): your ranked feed, search, verify, refresh, outreach
+├── app.html         Live Feed tab (sign-in + profile gated): your ranked feed, search, verify, outreach
 ├── server.py        FastAPI: pages + /api/* (accounts, per-user profiles + feeds, code-gated refresh)
 ├── prompts.py       profile schema + all LLM prompts (the heart)
 └── BUILD_SPEC.md    full spec, anyone can rebuild the product from it
