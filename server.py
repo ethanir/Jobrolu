@@ -1684,3 +1684,188 @@ async def saved_remove(request: Request):
     except Exception:
         return {"ok": False, "error": "Couldn't remove the job. Try again."}
     return {"ok": True}
+
+
+# ---------------------------------------------------------------- browser extension
+def _user_from_ext_token(request: Request):
+    """Resolve the extension's connect token from the request headers to a
+    user_id, or None. The extension runs on linkedin.com / handshake, so it
+    cannot send the site cookie; it sends the token as 'X-Jobrolu-Token: <t>' or
+    'Authorization: Bearer <t>' instead."""
+    if not db.has_db():
+        return None
+    tok = (request.headers.get("x-jobrolu-token") or "").strip()
+    if not tok:
+        auth = request.headers.get("authorization") or ""
+        if auth.lower().startswith("bearer "):
+            tok = auth[7:].strip()
+    if not tok:
+        return None
+    try:
+        with db.get_conn() as conn:
+            if conn:
+                return db.user_for_ext_token(conn, tok)
+    except Exception:
+        return None
+    return None
+
+
+@app.post("/api/ext/token")
+async def ext_token(request: Request):
+    """Issue (or rotate) this signed-in user's extension connect token. Shown
+    once; generating a new one replaces the old, which disconnects any extension
+    still using it."""
+    _require_auth(request)
+    user_id = request.state.user_id
+    if not db.has_db():
+        return {"ok": False, "error": "The extension needs the database, which is off right now."}
+    try:
+        with db.get_conn() as conn:
+            if not conn:
+                return {"ok": False, "error": "Couldn't reach the database. Try again."}
+            db.ensure_user(conn, user_id)
+            raw = db.create_ext_token(conn, user_id)
+    except Exception:
+        return {"ok": False, "error": "Couldn't create a token. Try again."}
+    return {"ok": True, "token": raw}
+
+
+@app.post("/api/ext/disconnect")
+async def ext_disconnect(request: Request):
+    """Disconnect the extension for this signed-in user."""
+    _require_auth(request)
+    user_id = request.state.user_id
+    if not db.has_db():
+        return {"ok": False, "error": "The extension needs the database, which is off right now."}
+    try:
+        with db.get_conn() as conn:
+            if conn:
+                db.revoke_ext_tokens(conn, user_id)
+    except Exception:
+        return {"ok": False, "error": "Couldn't disconnect. Try again."}
+    return {"ok": True}
+
+
+@app.get("/api/ext/status")
+def ext_status(request: Request):
+    """Whether this signed-in user currently has the extension connected."""
+    user_id = request.state.user_id
+    if not db.has_db():
+        return {"ok": True, "connected": False}
+    try:
+        with db.get_conn() as conn:
+            if conn:
+                return {"ok": True, "connected": db.has_ext_token(conn, user_id)}
+    except Exception:
+        pass
+    return {"ok": True, "connected": False}
+
+
+@app.post("/api/ext/ingest")
+async def ext_ingest(request: Request):
+    """The extension's main entry point. Given a job the user is viewing, store it,
+    dedup it, score it with the heuristic, and (only for a job with no verified
+    ranking yet) return a ready-to-run AI prompt built from the user's FULL profile.
+
+    The dedup contract is the important part for cost: once a job has a verified AI
+    ranking, this returns that score and NO prompt, so the extension never spends
+    the user's AI on the same posting twice, no matter how many times they refresh
+    or revisit it."""
+    user_id = _user_from_ext_token(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="connect the extension to your account first")
+    if not db.has_db():
+        return {"ok": False, "error": "The extension needs the database, which is off right now."}
+    profile = _user_profile(user_id)
+    if not profile:
+        return {"ok": False, "error": "Build a profile on Jobrolu first, then the extension can score jobs."}
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return {"ok": False, "error": "Expected a JSON object."}
+    desc = (body.get("description") or "").strip()
+    title = (body.get("title") or "").strip()
+    company = (body.get("company") or "").strip()
+    location = (body.get("location") or "").strip()
+    url = (body.get("url") or "").strip()
+    source = (body.get("source") or "").strip() or "extension"
+    explicit_id = (body.get("id") or "").strip()
+    dp = body.get("date_posted")
+    if not title and not desc:
+        return {"ok": False, "error": "The page had no readable title or description yet."}
+    job = {"id": explicit_id or None, "company": company or "(company)",
+           "title": title or "(role)", "location": location, "description": desc,
+           "url": url, "source": source, "date_posted": dp}
+    jid = explicit_id or db.job_hash(job)
+    ranked = {}
+    was_saved = False
+    try:
+        with db.get_conn() as conn:
+            if not conn:
+                return {"ok": False, "error": "Couldn't reach the database. Try again."}
+            db.ensure_user(conn, user_id)
+            ranked = db.get_rankings_map(conn, user_id)
+            was_saved = jid in {s["id"] for s in db.get_saved_jobs(conn, user_id)}
+            db.save_saved_job(conn, user_id, {**job, "id": jid})
+    except Exception:
+        return {"ok": False, "error": "Couldn't save the job. Try again."}
+    # Already verified by the user's AI: return that score, no prompt, no re-charge.
+    if jid in ranked:
+        f = ranked[jid]
+        rb = f.get("ranked_by") or ""
+        return {"ok": True, "id": jid, "duplicate": True, "verified": rb.startswith("ai"),
+                "tier": f.get("tier"), "score": f.get("score"), "ranked_by": rb}
+    # New (or saved-but-unranked): heuristic score now, plus a one-job AI prompt.
+    import score as _score
+    scoring = {**job, "id": jid}
+    try:
+        _score.rank_free([scoring], profile)
+        fit = _score.heuristic_fit(scoring)
+    except Exception:
+        fit = {"tier": "possible", "score": 50, "reasons": [], "matched_skills": [], "missing_skills": []}
+    prompt_job = {"id": jid, "title": job["title"], "company": job["company"],
+                  "location": job["location"], "description": desc[:RANK_DESC_CHARS]}
+    return {"ok": True, "id": jid, "duplicate": was_saved, "verified": False,
+            "tier": fit.get("tier"), "score": fit.get("score"), "ranked_by": "heuristic",
+            "prompt": _build_rank_prompt(profile, [prompt_job])}
+
+
+@app.post("/api/ext/rank")
+async def ext_rank(request: Request):
+    """Store the verified ranking the user's own AI produced for one job that the
+    extension previously ingested. Token-authed and idempotent (a re-rank just
+    overwrites). Marked ranked_by 'ai_ext' so it shows as verified in the feed."""
+    user_id = _user_from_ext_token(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="connect the extension to your account first")
+    if not db.has_db():
+        return {"ok": False, "error": "The extension needs the database, which is off right now."}
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict):
+        return {"ok": False, "error": "Expected a JSON object."}
+    jid = str(body.get("id", "")).strip()
+    if not jid:
+        return {"ok": False, "error": "Missing job id."}
+    fit = _sanitize_fit(body)
+    if not fit:
+        return {"ok": False, "error": "Couldn't read the ranking your AI returned."}
+    try:
+        with db.get_conn() as conn:
+            if not conn:
+                return {"ok": False, "error": "Couldn't reach the database. Try again."}
+            saved = {s["id"]: s for s in db.get_saved_jobs(conn, user_id)}
+            job = saved.get(jid)
+            if not job:
+                return {"ok": False, "error": "That job is not in your feed yet. Ingest it first."}
+            db.save_ranking(conn, user_id, {
+                "id": jid, "company": job["company"], "title": job["title"],
+                "location": job["location"], "source": job.get("source", "extension"),
+            }, fit, ranked_by="ai_ext")
+    except Exception:
+        return {"ok": False, "error": "Couldn't save the ranking. Try again."}
+    return {"ok": True, "id": jid, "tier": fit.get("tier"), "score": fit.get("score")}

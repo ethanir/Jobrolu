@@ -42,6 +42,7 @@ so the round-trip is exact.
 import hashlib
 import json
 import os
+import secrets
 import threading
 from contextlib import contextmanager
 from typing import Optional
@@ -144,6 +145,15 @@ CREATE TABLE IF NOT EXISTS saved_jobs (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (user_id, job_id)
 );
+
+CREATE TABLE IF NOT EXISTS ext_tokens (
+    token_hash   TEXT        PRIMARY KEY,
+    user_id      TEXT        NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_used_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS ext_tokens_user_idx ON ext_tokens (user_id);
 """
 
 
@@ -622,6 +632,63 @@ def delete_saved_job(conn, user_id: str, job_id: str) -> None:
                     (user_id, job_id))
         cur.execute("DELETE FROM rankings WHERE user_id = %s AND job_id = %s",
                     (user_id, job_id))
+    conn.commit()
+
+
+# ---------------------------------------------------------------- extension tokens
+def _hash_token(raw: str) -> str:
+    return hashlib.sha256((raw or "").encode("utf-8")).hexdigest()
+
+
+def create_ext_token(conn, user_id: str) -> str:
+    """Issue a fresh connect token for the browser extension, replacing any
+    previous one for this user (so re-connecting rotates the key). Only the hash
+    is stored; the raw token is returned once for the user to paste into the
+    extension and is never recoverable from the database afterward."""
+    if not conn or not user_id:
+        return ""
+    raw = secrets.token_urlsafe(32)
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM ext_tokens WHERE user_id = %s", (user_id,))
+        cur.execute("INSERT INTO ext_tokens (token_hash, user_id) VALUES (%s, %s)",
+                    (_hash_token(raw), user_id))
+    conn.commit()
+    return raw
+
+
+def user_for_ext_token(conn, raw: str) -> Optional[str]:
+    """Resolve a connect token to its user_id (or None), and stamp last_used_at.
+    This is how the extension authenticates: it cannot use the site cookie because
+    it runs on linkedin.com / handshake, not on jobrolu.com."""
+    if not conn or not raw:
+        return None
+    h = _hash_token(raw)
+    with conn.cursor() as cur:
+        cur.execute("SELECT user_id FROM ext_tokens WHERE token_hash = %s", (h,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        uid = row["user_id"]
+        cur.execute("UPDATE ext_tokens SET last_used_at = NOW() WHERE token_hash = %s", (h,))
+    conn.commit()
+    return uid
+
+
+def has_ext_token(conn, user_id: str) -> bool:
+    """Whether this user currently has the extension connected."""
+    if not conn or not user_id:
+        return False
+    with conn.cursor() as cur:
+        cur.execute("SELECT 1 FROM ext_tokens WHERE user_id = %s LIMIT 1", (user_id,))
+        return cur.fetchone() is not None
+
+
+def revoke_ext_tokens(conn, user_id: str) -> None:
+    """Disconnect the extension by deleting this user's connect token(s)."""
+    if not conn or not user_id:
+        return
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM ext_tokens WHERE user_id = %s", (user_id,))
     conn.commit()
 
 
