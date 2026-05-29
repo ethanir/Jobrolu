@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Jobrolu · AI job matching for software engineers</title>
-<meta name="description" content="Built for software engineers. Scans every open engineering role from 500+ companies, reads each full description with AI, and ranks the ones that actually fit your stack."/>
+<title>Jobrolu · AI job matching for engineers</title>
+<meta name="description" content="Built for engineers, from new grad to senior. Scans every open engineering role (backend, frontend, infra, data, ML, security) from 500+ companies, reads each full description with AI, and ranks the ones that actually fit your stack."/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -97,7 +97,7 @@
 </nav>
 
 <main class="hero">
-  <div class="tag rv d1"><span class="dot"></span>Built for software engineers</div>
+  <div class="tag rv d1"><span class="dot"></span>Built for engineers, at every level</div>
   <h1 class="rv d2">The job feed that<br>actually <span class="hl">reads</span> the job.</h1>
   <p class="sub rv d3">Every open <b>engineering</b> role, read in full by AI, ranked down to the few that truly fit your stack.</p>
   <div class="ctas rv d4" id="heroCtas">
@@ -147,7 +147,7 @@
   </div>
 </main>
 
-<div class="foot">Jobrolu · AI job matching for software engineers · jobrolu.com</div>
+<div class="foot">Jobrolu · AI job matching for engineers · jobrolu.com</div>
 
 <script>
 function lsignout(e){ if(e) e.preventDefault(); fetch("/api/auth/logout",{method:"POST",credentials:"same-origin"}).catch(function(){}).then(function(){ location.reload(); }); }
