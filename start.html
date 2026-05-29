@@ -141,9 +141,9 @@
       <pre id="prompt"></pre>
     </div>
     <div class="num"><div class="n">2</div><div class="t"><b>Copy the JSON</b> your AI gives back.</div></div>
-    <div class="num"><div class="n">3</div><div class="t"><b>Paste it below</b> and save.</div></div>
+    <div class="num"><div class="n">3</div><div class="t"><b>Paste it below</b> to review and save.</div></div>
     <textarea id="jsonIn" placeholder="Paste the JSON your AI returned here..."></textarea>
-    <button class="btn p" style="margin-top:14px;width:auto;padding:13px 26px" onclick="saveProfile()">Save my profile →</button>
+    <button class="btn p" style="margin-top:14px;width:auto;padding:13px 26px" onclick="saveProfile()">Review my profile →</button>
     <div class="msg" id="byoMsg"></div>
   </div>
 
@@ -207,6 +207,10 @@
 
 <script>
 const API = location.origin.startsWith("file") ? "http://localhost:8000" : "";
+// The full profile a resume / your-own-AI produced, kept so the manual form can
+// be reviewed and corrected without dropping fields it does not show (projects,
+// education, etc.). Null for a fresh manual entry.
+let PARSED = null;
 const SCHEMA = `{
   "name": null, "email": null, "phone": null, "location": null,
   "work_authorization": null, "requires_sponsorship": null,
@@ -230,6 +234,13 @@ document.getElementById("prompt").textContent = PROMPT;
 function togglePanel(){document.getElementById("panel").classList.toggle("show");document.getElementById("panel").scrollIntoView({behavior:"smooth",block:"nearest"});}
 function copyPrompt(){navigator.clipboard?.writeText(PROMPT);const b=document.getElementById("copyBtn");b.textContent="Copied";b.classList.add("done");setTimeout(()=>{b.textContent="Copy";b.classList.remove("done")},1500);}
 
+function reviewProfile(p, note){
+  prefillForm(p);                 // fills the form and stores the full profile
+  toggleForm();                   // open the manual form and scroll to it
+  const msg=document.getElementById("formMsg");
+  if(msg){ msg.className="msg"; msg.textContent=note; }
+}
+
 function saveProfile(){
   const raw=document.getElementById("jsonIn").value.trim();
   const msg=document.getElementById("byoMsg");
@@ -237,11 +248,8 @@ function saveProfile(){
   let clean=raw.replace(/^```json/,"").replace(/^```/,"").replace(/```$/,"").trim();
   let obj;
   try{obj=JSON.parse(clean);}catch(e){msg.className="msg err";msg.textContent="That doesn't look like valid JSON. Copy the whole object your AI returned.";return;}
-  fetch(API+"/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(obj)})
-    .then(r=>r.json()).then(d=>{
-      if(d.ok){msg.className="msg ok";msg.textContent="Saved. Taking you to your feed...";setTimeout(()=>location.href="/app",900);}
-      else{msg.className="msg err";msg.textContent=d.error||"Could not save.";}
-    }).catch(()=>{msg.className="msg err";msg.textContent="Can't reach the server. Start it with: uvicorn server:app --port 8000";});
+  msg.className="msg ok"; msg.textContent="Got it. Review the details below, then save.";
+  reviewProfile(obj, "We filled this in from your AI's output. Check it over and edit anything, then save below.");
 }
 
 document.getElementById("resumeFile").addEventListener("change",function(){
@@ -252,7 +260,10 @@ document.getElementById("resumeFile").addEventListener("change",function(){
   const fd=new FormData();fd.append("file",f);
   fetch(API+"/api/onboard",{method:"POST",body:fd})
     .then(r=>r.json()).then(d=>{
-      if(d.ok){msg.className="msg ok";msg.textContent="Profile built. Taking you to your feed...";setTimeout(()=>location.href="/app",900);}
+      if(d.ok && d.profile){
+        msg.className="msg ok";msg.textContent="Read your resume. Review the details below.";
+        reviewProfile(d.profile, "We filled this in from your resume. Check it over, add anything missing, then save below.");
+      }
       else{msg.className="msg err";msg.textContent=d.error||"Could not read that file.";}
     }).catch(()=>{msg.className="msg err";msg.textContent="Can't reach the server. Start it with: uvicorn server:app --port 8000";});
 });
@@ -273,23 +284,27 @@ function toggleForm(){
 
 function buildProfile(){
   const ws=(document.querySelector('input[name="fWork"]:checked')||{}).value||"either";
-  return {
-    name: val("fName")||null, email: val("fEmail")||null, phone:null, location:null,
-    work_authorization:null,
-    requires_sponsorship: document.getElementById("fSpon").checked,
-    target_titles: splitList(val("fTitles")),
-    years_experience: parseInt(val("fExp")||"0",10),
-    education: [],
-    skills: {languages: splitList(val("fSkills")), frameworks: [], tools: [], databases: []},
-    projects: [],
-    preferences: {
-      remote_ok: ws==="remote"||ws==="either",
-      onsite_ok: ws==="onsite"||ws==="either",
-      locations: splitSemi(val("fLocs")),
-      min_salary: null
-    },
-    links: {}
+  // Start from the full parsed profile (resume / your-own-AI) when we have one,
+  // so fields the form does not show (projects, education, links, phone, salary)
+  // are preserved; otherwise start blank for a pure manual entry.
+  const base = PARSED ? JSON.parse(JSON.stringify(PARSED)) : {
+    name:null, email:null, phone:null, location:null, work_authorization:null,
+    education:[], projects:[], links:{}, skills:{}, preferences:{}
   };
+  base.name = val("fName")||null;
+  base.email = val("fEmail")||null;
+  base.requires_sponsorship = document.getElementById("fSpon").checked;
+  base.target_titles = splitList(val("fTitles"));
+  base.years_experience = parseInt(val("fExp")||"0",10);
+  base.skills = Object.assign({}, base.skills||{}, {
+    languages: splitList(val("fSkills")), frameworks: [], tools: [], databases: []
+  });
+  base.preferences = Object.assign({}, base.preferences||{}, {
+    remote_ok: ws==="remote"||ws==="either",
+    onsite_ok: ws==="onsite"||ws==="either",
+    locations: splitSemi(val("fLocs"))
+  });
+  return base;
 }
 
 function saveForm(){
@@ -307,6 +322,7 @@ function saveForm(){
 
 function prefillForm(p){
   if(!p) return false;
+  PARSED = p;
   setVal("fName", p.name||"");
   setVal("fEmail", p.email||"");
   setVal("fTitles", (p.target_titles||[]).join(", "));

@@ -60,7 +60,11 @@
   .depth-in{padding:0 0 16px}
   .depth-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px}
   .depth-label{display:inline-flex;align-items:center;gap:7px;font-family:var(--fu);font-size:13px;font-weight:700;color:var(--ink2)}
-  .depth-est{font-family:var(--fm);font-size:12.5px;font-weight:700;color:var(--green);white-space:nowrap}
+  .depth-est{display:flex;gap:13px;align-items:baseline;white-space:nowrap}
+  .est-stat{display:inline-flex;gap:5px;align-items:baseline;font-family:var(--fu);font-size:11.5px;color:var(--mut)}
+  .est-stat b{font-family:var(--fd);font-weight:700;font-size:13px;color:var(--ink2);letter-spacing:-.01em}
+  .est-stat.est-hit b{color:var(--green)}
+  .est-free{font-family:var(--fu);font-size:12px;font-weight:700;color:var(--green)}
   .depth-row{display:flex;align-items:center;gap:14px}
   .depth-val{font-family:var(--fu);font-size:14px;font-weight:700;color:var(--ink);min-width:46px;text-align:right}
   .depth-slider{-webkit-appearance:none;appearance:none;flex:1;height:6px;border-radius:99px;background:#222a34;outline:none;cursor:pointer}
@@ -172,6 +176,14 @@
   .rankstep .rt b{color:var(--ink);font-weight:700}
   .rankbox{position:relative;margin:6px 0 14px}
   .rankbox textarea.promptview{width:100%;height:130px;background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:14px;color:var(--mut);font-family:var(--fu);font-size:12px;line-height:1.5;resize:vertical;outline:none;white-space:pre}
+  .rankn{background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:13px 15px;margin:4px 0 16px}
+  .rankn-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+  .rankn-label{font-family:var(--fu);font-size:13px;font-weight:700;color:var(--ink2)}
+  .rankn-val{font-family:var(--fd);font-size:15px;font-weight:700;color:var(--green)}
+  .rankn-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:#222a34;outline:none;cursor:pointer}
+  .rankn-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--green);border:none;cursor:pointer;box-shadow:0 0 0 4px rgba(79,227,155,.16)}
+  .rankn-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--green);border:none;cursor:pointer}
+  .rankn-warn{font-family:var(--fu);font-size:11.5px;color:var(--mut);margin-top:9px;line-height:1.5}
   .rankcopy{position:absolute;top:10px;right:10px;font-family:var(--fu);font-size:12px;font-weight:700;color:var(--green);background:var(--greenbg);border:1px solid var(--greenln);border-radius:8px;padding:6px 12px;cursor:pointer;z-index:2}
   .rankcopy.done{color:#08120c;background:var(--green)}
   .modal.wide textarea{width:100%;min-height:96px;background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:13px;color:var(--ink);font-family:var(--fu);font-size:12.5px;line-height:1.5;resize:vertical;outline:none}
@@ -210,7 +222,7 @@
     </div>
     <div class="depth-row">
       <input class="depth-slider" type="range" id="depthSlider" min="0" max="1000" step="20" value="100" oninput="updateDepth()"/>
-      <span class="depth-val" id="depthVal">800</span>
+      <span class="depth-val" id="depthVal">100</span>
     </div>
     <div class="depth-note">The free scorer rates every role. This sets how many of the top roles the AI reads in full. Jobs already scanned are cached and free, so you only pay for depth beyond what's been read. Deeper finds a few more, with a steep drop-off.</div>
   </div></div></div>
@@ -258,6 +270,11 @@
     <button class="modal-x" onclick="closeRank()" aria-label="close">×</button>
     <h2>Rank these with your own AI</h2>
     <p>Your feed is keyword estimates right now. Have your own ChatGPT or Claude score your top matches in full, for free. It takes about a minute.</p>
+    <div class="rankn">
+      <div class="rankn-top"><span class="rankn-label">Jobs to send</span><span class="rankn-val" id="rankNVal">25</span></div>
+      <input class="rankn-slider" type="range" id="rankNSlider" min="5" max="40" step="5" value="25" oninput="setRankN(this.value)"/>
+      <div class="rankn-warn">Sending more is fine, but some AIs cut off a long reply. If the result you paste looks incomplete, lower this and try again.</div>
+    </div>
     <div class="ranksteps" id="rankSteps">
       <div class="rankstep"><div class="rn">1</div><div class="rt"><b>Copy this prompt</b> and paste it into ChatGPT or Claude (free web version is fine), then send.</div></div>
       <div class="rankbox">
@@ -320,15 +337,22 @@ function updateDepth(){
   const pct=(n/1000)*100;
   sl.style.background="linear-gradient(90deg,var(--green) "+pct+"%,#222a34 "+pct+"%)";
   const est=document.getElementById("depthEst");
-  if(n===0){ est.textContent="Free · heuristic only"; return; }
   const m=Math.round(depthMatches(n));
+  if(n===0){ est.innerHTML='<span class="est-free">Free \u00b7 heuristic only</span>'; return; }
   const fresh=Math.max(0, n - RANKED_CACHE);
-  if(fresh===0){ est.textContent="Cached · ~$0 · ~"+m+" strong"; return; }
-  const cost="$"+(fresh*0.01).toFixed(2);
-  const sec=Math.round(fresh*0.5);
+  // Calibrated against a real run: ~$0.0045 and ~0.69s per freshly ranked job,
+  // plus fixed sourcing/scoring overhead. We round cost slightly up so the
+  // estimate never under-promises the bill.
+  if(fresh===0){
+    est.innerHTML='<span class="est-free">Cached \u00b7 free</span>'+stat("~"+m,"strong","est-hit");
+    return;
+  }
+  const cost="$"+(fresh*0.005).toFixed(2);
+  const sec=Math.round(20 + fresh*0.6);
   const t=sec<90?("~"+sec+"s"):("~"+Math.round(sec/60)+" min");
-  est.textContent="~"+cost+" · "+t+" · ~"+m+" strong";
+  est.innerHTML=stat("~"+cost,"cost")+stat(t,"time")+stat("~"+m,"strong","est-hit");
 }
+function stat(val,label,cls){ return '<span class="est-stat '+(cls||"")+'"><b>'+val+'</b>'+label+'</span>'; }
 async function fetchCacheStats(){
   try{
     const s=await fetch(API+"/api/cache/stats").then(r=>r.json());
@@ -421,17 +445,25 @@ function renderRankBanner(){
     '</div>';
 }
 
+let RANK_N = 25;
 function openRank(){
   document.getElementById("rankBg").classList.add("show");
   document.getElementById("rankMsg").textContent = "";
   document.getElementById("rankIn").value = "";
+  loadRankPrompt();
+}
+function loadRankPrompt(){
   const pre = document.getElementById("rankPrompt");
-  if(RANK_PROMPT){ pre.value = RANK_PROMPT; return; }
   pre.value = "Loading your top matches...";
-  fetch(API+"/api/rank/byo",{credentials:"same-origin"}).then(r=>r.json()).then(d=>{
+  fetch(API+"/api/rank/byo?n="+RANK_N,{credentials:"same-origin"}).then(r=>r.json()).then(d=>{
     if(d.ok && d.prompt){ RANK_PROMPT = d.prompt; pre.value = d.prompt; }
-    else{ pre.value = ""; document.getElementById("rankMsg").className="modal-msg"; document.getElementById("rankMsg").textContent = d.error || "Couldn't build the prompt."; }
-  }).catch(()=>{ pre.value=""; document.getElementById("rankMsg").textContent = "Can't reach the server."; });
+    else{ RANK_PROMPT=""; pre.value = ""; document.getElementById("rankMsg").className="modal-msg"; document.getElementById("rankMsg").textContent = d.error || "Couldn't build the prompt."; }
+  }).catch(()=>{ RANK_PROMPT=""; pre.value=""; document.getElementById("rankMsg").textContent = "Can't reach the server."; });
+}
+function setRankN(v){
+  RANK_N = parseInt(v,10) || 25;
+  document.getElementById("rankNVal").textContent = RANK_N;
+  loadRankPrompt();
 }
 function closeRank(){ document.getElementById("rankBg").classList.remove("show"); }
 function copyRankPrompt(){

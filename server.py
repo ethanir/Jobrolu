@@ -781,17 +781,10 @@ async def onboard_resume(request: Request, file: UploadFile = File(...)):
         path = os.environ.get("PROFILE_PATH", "my_profile.json")
         profile = onboard_mod.onboard(tmp_path, path)
         os.unlink(tmp_path)
-        # Also store it as this user's per-user profile, so the feed (which reads
-        # the per-user profile) and the form / BYO-AI paths all save the same way.
-        if db.has_db():
-            try:
-                with db.get_conn() as conn:
-                    if conn:
-                        db.ensure_user(conn, request.state.user_id, is_owner=_is_unlocked(request))
-                        db.save_profile(conn, request.state.user_id, profile)
-            except Exception:
-                pass
-        return {"ok": True, "saved": path, "name": profile.get("name")}
+        # Review-first: return the parsed profile so the UI can prefill the manual
+        # form for the user to check and correct. We do NOT save it to their feed
+        # here; that happens when they review and hit Save (POST /api/profile).
+        return {"ok": True, "name": profile.get("name"), "profile": profile}
     except Exception as e:
         msg = str(e)
         if "pypdf" in msg:
@@ -957,14 +950,19 @@ def _sanitize_fit(r):
 
 
 @app.get("/api/rank/byo")
-def rank_export(request: Request):
+def rank_export(request: Request, n: int = RANK_EXPORT_MAX):
     """Return a ready-to-paste prompt (and the jobs it covers) so the current
-    user can rank their top jobs with their own AI for free. Needs a profile."""
+    user can rank their top jobs with their own AI for free. `n` lets the user
+    pick how many to send (clamped to a sane range). Needs a profile."""
     user_id = request.state.user_id
     profile = _user_profile(user_id)
     if not profile:
         return {"ok": False, "error": "Build a profile first, then you can rank your matches."}
-    jobs = _rank_candidates(user_id, profile, RANK_EXPORT_MAX)
+    try:
+        n = max(5, min(int(n), RANK_EXPORT_MAX))
+    except Exception:
+        n = RANK_EXPORT_MAX
+    jobs = _rank_candidates(user_id, profile, n)
     if not jobs:
         return {"ok": False, "error": "No new jobs to rank right now. Your top matches are already verified."}
     return {"ok": True, "count": len(jobs),
