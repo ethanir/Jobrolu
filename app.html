@@ -158,6 +158,29 @@
   pre.email{margin:0;font-family:var(--fm);font-size:14px;line-height:1.55;color:var(--ink2);white-space:pre-wrap;word-break:break-word}
   .apply{display:block;text-align:center;text-decoration:none;font-family:var(--fu);font-size:15px;font-weight:700;padding:13px 18px;border-radius:12px;background:var(--green);color:#08120c;margin-top:16px}
   .empty{padding:60px 24px;text-align:center;color:var(--mut);font-family:var(--fu)}
+  /* smooth first-load: a thin indeterminate top bar + skeleton placeholders that
+     mirror the real feed, so nothing ever shows as a blank, stalled page */
+  .loadbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:60;overflow:hidden;opacity:0;pointer-events:none;transition:opacity .3s}
+  .loadbar.on{opacity:1}
+  .loadbar i{position:absolute;height:100%;width:38%;left:-38%;border-radius:0 3px 3px 0;background:linear-gradient(90deg,transparent,var(--green),transparent)}
+  .loadbar.on i{animation:lbar 1.15s ease-in-out infinite}
+  @keyframes lbar{0%{left:-38%}55%{left:58%}100%{left:110%}}
+  @keyframes shim{0%{background-position:-440px 0}100%{background-position:440px 0}}
+  .sk{display:block;background:linear-gradient(90deg,#171d26 0%,#232c39 50%,#171d26 100%);background-size:880px 100%;animation:shim 1.3s linear infinite;border-radius:7px}
+  .skrow{position:relative;padding:20px;border-bottom:1px solid var(--line2)}
+  .sk-badge{position:absolute;top:18px;right:18px;width:36px;height:22px;border-radius:8px}
+  .sk-co{width:84px;height:11px;margin-bottom:11px}
+  .sk-ti{width:70%;height:18px;margin-bottom:13px}
+  .sk-ti.s{width:48%}
+  .sk-loc{width:42%;height:11px}
+  .skdetail{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:26px 28px}
+  .sk-h1{width:58%;height:26px;margin-bottom:13px}
+  .sk-h2{width:34%;height:13px;margin-bottom:26px}
+  .sk-line{height:13px;margin-bottom:12px}
+  .sk-line.w1{width:92%}.sk-line.w2{width:82%}.sk-line.w3{width:64%}
+  .skchips{display:flex;gap:8px;margin-top:20px}
+  .skchip{width:66px;height:26px;border-radius:8px}
+  @media(prefers-reduced-motion:reduce){.sk,.loadbar.on i{animation:none}}
   .loadmore{width:100%;margin:14px 0 4px;padding:13px;background:var(--card);border:1px solid var(--line2);border-radius:12px;color:var(--ink2);font-family:var(--fu);font-size:13px;font-weight:700;cursor:pointer;transition:border-color .15s,color .15s}
   .loadmore:hover{border-color:var(--green);color:var(--green)}
   .loadmore b{color:var(--mut);font-weight:600}
@@ -225,6 +248,7 @@
 </style>
 </head>
 <body>
+<div class="loadbar" id="loadbar"><i></i></div>
 <header>
   <div class="wrap head-in">
     <div style="display:flex;align-items:center">
@@ -310,9 +334,29 @@ function dotClass(j){ if(j.tier==="strong"&&verified(j)) return ""; if(j.tier===
 function ringColor(j){ if(!verified(j)) return "#7e8a96"; if(j.tier==="strong") return "#4fe39b"; if(j.tier==="possible") return "#e3c14f"; return "#7e8a96"; }
 
 /* ---------- feed ---------- */
+function skeletonRows(n){
+  let h="";
+  for(let i=0;i<n;i++){
+    h+='<div class="skrow"><span class="sk sk-badge"></span><span class="sk sk-co"></span>'
+     + '<span class="sk sk-ti'+(i%2?' s':'')+'"></span><span class="sk sk-loc"></span></div>';
+  }
+  return h;
+}
+function skeletonDetail(){
+  return '<div class="skdetail"><span class="sk sk-h1"></span><span class="sk sk-h2"></span>'
+    + '<span class="sk sk-line w1"></span><span class="sk sk-line w2"></span><span class="sk sk-line w3"></span>'
+    + '<div class="skchips"><span class="sk skchip"></span><span class="sk skchip"></span><span class="sk skchip"></span></div></div>';
+}
+function showLoading(on){ const lb=document.getElementById("loadbar"); if(lb) lb.classList.toggle("on", !!on); }
+
 async function loadJobs(){
   const list = document.getElementById("list");
-  if(!JOBS.length){ list.innerHTML = '<div class="empty">Loading your matches\u2026</div>'; }
+  if(!JOBS.length){
+    list.innerHTML = skeletonRows(7);
+    const dw = document.getElementById("detailWrap");
+    if(dw) dw.innerHTML = skeletonDetail();
+  }
+  showLoading(true);
   try{
     const r = await fetch(API + "/api/jobs?tier=all");
     const d = await r.json();
@@ -329,7 +373,9 @@ async function loadJobs(){
     document.getElementById("meta").textContent = JOBS.length + " roles";
     renderRankBanner();
     render();
+    showLoading(false);
   }catch(e){
+    showLoading(false);
     document.getElementById("list").innerHTML = '<div class="empty">Can\'t reach the server.<br>Start it with <b>uvicorn server:app --port 8000</b>, then reload.</div>';
   }
 }

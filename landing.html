@@ -16,18 +16,16 @@
     --fd:'Fredoka',sans-serif; --fb:'Nunito',sans-serif;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--fb);-webkit-font-smoothing:antialiased;overflow:hidden}
   a{color:inherit;text-decoration:none}
   ::selection{background:var(--accglow)}
   body{
     background:
       radial-gradient(820px 520px at 84% -6%, rgba(79,227,155,.10) 0%, transparent 60%),
-      radial-gradient(700px 600px at 8% 96%, rgba(79,227,155,.06) 0%, transparent 58%),
+      radial-gradient(700px 600px at 8% 108%, rgba(79,227,155,.07) 0%, transparent 58%),
       var(--bg);
+    display:flex;flex-direction:column;height:100vh;
   }
-
-  /* the first screen holds the nav + hero, full viewport height, just like before */
-  .screen1{min-height:100vh;display:flex;flex-direction:column}
 
   /* nav */
   nav{display:flex;align-items:center;justify-content:space-between;padding:22px 38px;flex-shrink:0}
@@ -40,203 +38,115 @@
   .nav-r .pill:hover{color:var(--bg);background:var(--acc2)}
   @media(max-width:620px){.nav-r a.txt{display:none}}
 
-  /* hero fills the rest of the first screen, centered */
-  .hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px 38px 40px;min-height:0}
-  .tag{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:var(--acc);background:var(--accdim);border:1px solid #224f38;border-radius:99px;padding:7px 16px;margin-bottom:26px}
+  /* hero fills remaining space, centered, no scroll */
+  .hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6px 38px 26px;min-height:0}
+  .tag{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;color:var(--acc);background:var(--accdim);border:1px solid #224f38;border-radius:99px;padding:7px 16px;margin-bottom:22px}
   .tag .dot{width:7px;height:7px;border-radius:99px;background:var(--acc);box-shadow:0 0 10px var(--acc);animation:bp 2s infinite}
   @keyframes bp{0%,100%{opacity:1}50%{opacity:.4}}
-  h1{font-family:var(--fd);font-weight:600;font-size:clamp(38px,6.6vw,74px);line-height:1.03;letter-spacing:-.02em;margin:0 0 22px;max-width:15ch}
-  h1 .hl{color:var(--acc);position:relative;white-space:nowrap}
-  .sub{font-size:clamp(16px,2vw,20px);line-height:1.55;color:var(--ink2);max-width:50ch;margin:0 0 34px;font-weight:500}
+  h1{font-family:var(--fd);font-weight:600;font-size:clamp(36px,6vw,68px);line-height:1.03;letter-spacing:-.02em;margin:0 0 18px;max-width:15ch}
+  h1 .hl{color:var(--acc);white-space:nowrap}
+  .sub{font-size:clamp(15px,1.9vw,19px);line-height:1.5;color:var(--ink2);max-width:46ch;margin:0 0 28px;font-weight:500}
   .sub b{color:var(--ink);font-weight:800}
-  .ctas{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:14px}
-  .btn{font-family:var(--fd);font-size:16px;font-weight:600;border-radius:14px;padding:15px 28px;cursor:pointer;border:none;transition:transform .12s,background .15s,box-shadow .15s;display:inline-flex;align-items:center;gap:9px}
+  .ctas{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+  .btn{font-family:var(--fd);font-size:16px;font-weight:600;border-radius:14px;padding:14px 26px;cursor:pointer;border:none;transition:transform .12s,background .15s,box-shadow .15s;display:inline-flex;align-items:center;gap:9px}
   .btn:hover{transform:translateY(-2px)}
   .btn.p{background:var(--acc);color:#08120c;box-shadow:0 8px 26px var(--accglow)}
   .btn.p:hover{background:var(--acc2);box-shadow:0 12px 30px var(--accglow)}
   .btn.g{background:var(--card2);color:var(--ink);border:1px solid var(--line2)}
   .btn.g:hover{border-color:var(--acc);color:var(--acc)}
-  .micro{font-size:13px;color:var(--mut);font-weight:600;margin:6px 0 0}
+  .micro{font-size:12.5px;color:var(--mut);font-weight:600;margin:4px 0 0}
 
-  /* how-it-works flow (same card aesthetic) */
-  .flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:34px;width:100%;max-width:660px}
-  .fstep{flex:1 1 0;min-width:148px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
-  .fstep .fic{width:38px;height:38px;border-radius:11px;background:var(--accdim);border:1px solid #224f38;display:flex;align-items:center;justify-content:center;color:var(--acc)}
-  .fstep .ft{font-family:var(--fd);font-size:14.5px;font-weight:600;color:var(--ink)}
-  .fstep .fs{font-size:11.5px;color:var(--mut);font-weight:600;line-height:1.45}
+  /* the funnel: many roles -> ranked -> read in full -> the few that fit */
+  .funnel{display:flex;align-items:stretch;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:36px;width:100%;max-width:880px}
+  .stage{flex:1 1 0;min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 14px 16px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;gap:11px}
+  .stage.final{border-color:#2c4a3a;background:linear-gradient(180deg,var(--card) 0%,#13201a 100%);box-shadow:0 10px 34px var(--accglow)}
+  .stage .viz{height:54px;display:flex;align-items:center;justify-content:center;width:100%}
+  .stage .slabel{font-family:var(--fd);font-size:14px;font-weight:600;color:var(--ink);line-height:1.15}
+  .stage .scap{font-size:11px;color:var(--mut);font-weight:700;letter-spacing:.02em;line-height:1.35}
   .farrow{flex:0 0 auto;display:flex;align-items:center;color:#3a4654}
-  @media(max-width:560px){.farrow{display:none}}
-  .scrollcue{margin-top:30px;color:var(--mut);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:6px;opacity:.8}
-  .scrollcue svg{animation:bob 1.8s ease-in-out infinite}
-  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+  @media(max-width:720px){.farrow{display:none}.funnel{max-width:420px}}
 
-  /* below-the-fold content */
-  .band{max-width:1080px;margin:0 auto;padding:84px 38px 0}
-  .band-h{text-align:center;max-width:62ch;margin:0 auto 42px}
-  .eyebrow{font-size:12.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
-  .h2{font-family:var(--fd);font-weight:600;font-size:clamp(28px,4vw,42px);line-height:1.08;letter-spacing:-.02em;margin:0 0 14px}
-  .lead{font-size:clamp(15px,1.7vw,18px);line-height:1.6;color:var(--ink2);margin:0;font-weight:500}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px 22px;transition:border-color .2s,transform .2s}
-  .card:hover{border-color:#2c4a3a;transform:translateY(-3px)}
-  .card .ci{width:42px;height:42px;border-radius:12px;background:var(--accdim);border:1px solid #224f38;display:flex;align-items:center;justify-content:center;color:var(--acc);margin-bottom:16px}
-  .card h3{font-family:var(--fd);font-weight:600;font-size:18px;margin:0 0 8px;color:var(--ink)}
-  .card p{font-size:14px;line-height:1.55;color:var(--mut);margin:0;font-weight:500}
+  /* stage visuals */
+  .srcgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%;max-width:104px}
+  .srcgrid span{height:13px;border-radius:4px;background:#232c39}
+  .srcgrid span:nth-child(3n){background:#2a3442}
+  .ic{width:46px;height:46px;border-radius:13px;background:var(--accdim);border:1px solid #224f38;display:flex;align-items:center;justify-content:center;color:var(--acc)}
+  .matchcards{display:flex;flex-direction:column;gap:6px;width:100%;max-width:122px}
+  .mcard{display:flex;align-items:center;justify-content:space-between;gap:7px;background:#10141b;border:1px solid var(--line2);border-radius:8px;padding:7px 8px}
+  .mcard .mln{height:7px;border-radius:3px;background:#2c3744;flex:1}
+  .mcard .msc{font-family:var(--fb);font-size:11px;font-weight:800;color:var(--acc);background:var(--accdim);border:1px solid #224f38;border-radius:5px;padding:1px 6px;flex:0 0 auto}
 
-  .steps{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
-  .step{display:flex;gap:18px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
-  .step .num{flex:0 0 auto;width:34px;height:34px;border-radius:10px;background:var(--acc);color:#08120c;font-family:var(--fd);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 16px var(--accglow)}
-  .step .stx h3{font-family:var(--fd);font-weight:600;font-size:17.5px;margin:0 0 5px;color:var(--ink)}
-  .step .stx p{font-size:14px;line-height:1.55;color:var(--ink2);margin:0;font-weight:500}
-  .step .stx p .q{color:var(--mut)}
+  /* tiny footer line inside viewport */
+  .foot{flex-shrink:0;text-align:center;padding:0 0 16px;font-size:12px;color:var(--mut);font-weight:600}
 
-  .cta{max-width:780px;margin:64px auto 0;text-align:center;background:linear-gradient(180deg,var(--card) 0%,var(--card2) 100%);border:1px solid var(--line2);border-radius:24px;padding:56px 38px}
-  .cta .h2{margin-bottom:12px}
-  .cta .lead{margin-bottom:26px}
-
-  .foot{text-align:center;padding:52px 0 30px;font-size:12px;color:var(--mut);font-weight:600}
-
-  /* entrance + scroll reveal (reveal is enhancement only: with no JS, everything shows) */
   .rv{opacity:0;transform:translateY(16px);animation:rv .7s cubic-bezier(.2,.7,.2,1) forwards}
   @keyframes rv{to{opacity:1;transform:none}}
   .d1{animation-delay:.04s}.d2{animation-delay:.12s}.d3{animation-delay:.2s}.d4{animation-delay:.28s}.d5{animation-delay:.36s}
-  html.js .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
-  html.js .reveal.in{opacity:1;transform:none}
-  @media(prefers-reduced-motion:reduce){
-    .rv,html.js .reveal{animation:none;opacity:1;transform:none;transition:none}
-  }
+  @media(prefers-reduced-motion:reduce){.rv{animation:none;opacity:1;transform:none}.tag .dot{animation:none}}
 </style>
 </head>
 <body>
 
-<section class="screen1">
-  <nav>
-    <div class="brand"><span class="mk"></span>Jobrolu</div>
-    <div class="nav-r">
-      <a class="txt" href="/signin">Sign in</a>
-      <a class="pill" href="/signin?new=1">Get started</a>
-    </div>
-  </nav>
-
-  <main class="hero">
-    <div class="tag rv d1"><span class="dot"></span>Built for software engineers</div>
-    <h1 class="rv d2">The job feed that<br>actually <span class="hl">reads</span> the job.</h1>
-    <p class="sub rv d3">Jobrolu scans every open <b>software engineering</b> role from 500+ companies, reads each full description with AI, and ranks the handful that genuinely fit your stack. No scrolling job boards. No keyword guessing.</p>
-    <div class="ctas rv d4">
-      <a class="btn p" href="/signin?new=1">Get started free →</a>
-      <a class="btn g" href="/signin">Sign in</a>
-    </div>
-    <p class="micro rv d4">Free to start, about a minute to set up. You always send the application yourself, never us.</p>
-
-    <div class="flow rv d5">
-      <div class="fstep">
-        <div class="fic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
-        <div class="ft">1 · Build your profile</div>
-        <div class="fs">A quick form, your resume, or your own AI.</div>
-      </div>
-      <div class="farrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
-      <div class="fstep">
-        <div class="fic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
-        <div class="ft">2 · AI reads every job</div>
-        <div class="fs">Full descriptions from 500+ companies, not keywords.</div>
-      </div>
-      <div class="farrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
-      <div class="fstep">
-        <div class="fic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
-        <div class="ft">3 · Get real matches</div>
-        <div class="fs">Ranked honestly, with the recruiter to email.</div>
-      </div>
-    </div>
-
-    <div class="scrollcue">What is Jobrolu
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </div>
-  </main>
-</section>
-
-<!-- what it is -->
-<section class="band">
-  <div class="band-h reveal">
-    <p class="eyebrow">What it is</p>
-    <h2 class="h2">Not another job board.</h2>
-    <p class="lead">Job boards make you scroll thousands of listings and judge each one from a title. Jobrolu does the reading for you. It pulls every open engineering role, has an AI read each full posting against your background, and surfaces only the ones that genuinely fit, with the reasons spelled out.</p>
+<nav>
+  <div class="brand"><span class="mk"></span>Jobrolu</div>
+  <div class="nav-r">
+    <a class="txt" href="/signin">Sign in</a>
+    <a class="pill" href="/signin?new=1">Get started</a>
   </div>
-  <div class="grid reveal">
-    <div class="card">
-      <div class="ci"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
-      <h3>It reads the whole posting</h3>
-      <p>Each full job description goes to an AI that weighs your stack, seniority, and experience the way a careful recruiter would, instead of matching keywords in the title.</p>
+</nav>
+
+<main class="hero">
+  <div class="tag rv d1"><span class="dot"></span>Built for software engineers</div>
+  <h1 class="rv d2">The job feed that<br>actually <span class="hl">reads</span> the job.</h1>
+  <p class="sub rv d3">Every open <b>engineering</b> role, read in full by AI, ranked down to the few that truly fit your stack.</p>
+  <div class="ctas rv d4">
+    <a class="btn p" href="/signin?new=1">Get started free →</a>
+    <a class="btn g" href="/signin">Sign in</a>
+  </div>
+  <p class="micro rv d4">Free to start. You always send the application yourself, never us.</p>
+
+  <div class="funnel rv d5">
+    <div class="stage">
+      <div class="viz">
+        <div class="srcgrid"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <div class="slabel">Every open role</div>
+      <div class="scap">500+ companies · 7 job systems</div>
     </div>
-    <div class="card">
-      <div class="ci"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
-      <h3>500+ companies, always fresh</h3>
-      <p>Roles come straight from company career systems like Greenhouse, Lever, Ashby, and Workday, and refresh on their own, so the feed stays current without you lifting a finger.</p>
+
+    <div class="farrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+
+    <div class="stage">
+      <div class="viz"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2.4" fill="var(--card)"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2.4" fill="var(--card)"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="18" r="2.4" fill="var(--card)"/></svg></div></div>
+      <div class="slabel">Ranked for you</div>
+      <div class="scap">free · instant</div>
     </div>
-    <div class="card">
-      <div class="ci"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
-      <h3>Honest scores and real gaps</h3>
-      <p>Every match shows why you fit, the skills you are missing, and a score you can trust, instead of a flat 99 on everything. A correct skip beats an inflated match.</p>
+
+    <div class="farrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+
+    <div class="stage">
+      <div class="viz"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h7"/><path d="M14 2v5h5"/><circle cx="17" cy="16" r="3.2"/><path d="m21.5 20.5-1.7-1.7"/></svg></div></div>
+      <div class="slabel">AI reads each one</div>
+      <div class="scap">full descriptions</div>
     </div>
-    <div class="card">
-      <div class="ci"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
-      <h3>You stay in control</h3>
-      <p>Jobrolu finds and ranks; you apply. Every match links to the real posting and the recruiter to contact, so nothing is ever sent on your behalf.</p>
+
+    <div class="farrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></div>
+
+    <div class="stage final">
+      <div class="viz">
+        <div class="matchcards">
+          <div class="mcard"><span class="mln"></span><span class="msc">92</span></div>
+          <div class="mcard"><span class="mln" style="width:70%"></span><span class="msc">86</span></div>
+          <div class="mcard"><span class="mln" style="width:55%"></span><span class="msc">81</span></div>
+        </div>
+      </div>
+      <div class="slabel">Your matches</div>
+      <div class="scap">only the ones that fit</div>
     </div>
   </div>
-</section>
-
-<!-- how it works -->
-<section class="band">
-  <div class="band-h reveal">
-    <p class="eyebrow">How it works</p>
-    <h2 class="h2">Two passes, so nothing slips through.</h2>
-    <p class="lead">A free pass ranks every role instantly. Then AI reads your best matches in full. You get speed and depth, without paying to read jobs that were never going to fit.</p>
-  </div>
-  <div class="steps reveal">
-    <div class="step">
-      <div class="num">1</div>
-      <div class="stx">
-        <h3>Build your profile</h3>
-        <p>Upload your resume, fill in a quick form, or paste a prompt into your own AI to fill it for you. <span class="q">It takes about a minute, and you can edit everything before saving.</span></p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="num">2</div>
-      <div class="stx">
-        <h3>Every open role is scored for you, instantly</h3>
-        <p>A free pass ranks the entire live pool against your profile by title fit, your skills, seniority, and location, best first. <span class="q">These start as quick estimates, clearly labeled, so you can browse right away.</span></p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="num">3</div>
-      <div class="stx">
-        <h3>AI verifies your top matches in full</h3>
-        <p>One click sends your best matches to an AI that reads each complete posting and confirms the real fits, with reasons and gaps. <span class="q">Verified matches are marked clearly, and you keep the recruiter link to reach out.</span></p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- final CTA -->
-<section class="cta reveal">
-  <h2 class="h2">Stop scrolling. Start matching.</h2>
-  <p class="lead">Build your profile in about a minute and see the roles that actually fit.</p>
-  <a class="btn p" href="/signin?new=1">Get started free →</a>
-</section>
+</main>
 
 <div class="foot">Jobrolu · AI job matching for software engineers · jobrolu.com</div>
-
-<script>
-  if ('IntersectionObserver' in window) {
-    document.documentElement.classList.add('js');
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
-  }
-</script>
 
 </body>
 </html>
