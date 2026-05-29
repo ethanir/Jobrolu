@@ -100,6 +100,20 @@
   .field .hint{font-size:12px;color:var(--mut);font-weight:500}
   .field input[type=text],.field select{background:#0a0d12;border:1px solid var(--line2);border-radius:11px;padding:12px 13px;color:var(--ink);font-family:var(--fb);font-size:14px;outline:none;transition:border-color .15s;width:100%}
   .field input[type=text]:focus,.field select:focus{border-color:var(--accln)}
+  .repsec-h{grid-column:1/-1;font-family:var(--fb);font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding-top:18px;margin-top:2px}
+  .repsec-opt{font-weight:500;text-transform:none;letter-spacing:0;color:var(--mut);font-size:12px}
+  .rep{display:flex;flex-direction:column;gap:10px}
+  .rep-row{position:relative;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#0a0d12}
+  .rep-row input[type=text]{background:#11161d;border:1px solid var(--line2);border-radius:9px;padding:10px 12px;color:var(--ink);font-family:var(--fb);font-size:13.5px;outline:none;width:100%}
+  .rep-row input[type=text]:focus{border-color:var(--accln)}
+  .rep-del{align-self:flex-end;background:transparent;border:none;color:var(--mut);cursor:pointer;font-family:var(--fb);font-size:12px;font-weight:700;padding:2px 4px}
+  .rep-del:hover{color:#ff6b6b}
+  .rep-add{margin-top:10px;background:transparent;border:1px dashed var(--line2);color:var(--ink2);border-radius:10px;padding:9px 14px;cursor:pointer;font-family:var(--fb);font-weight:700;font-size:13px}
+  .rep-add:hover{border-color:var(--acc);color:var(--acc)}
+  .pv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+  .pv-list li{font-family:var(--fb);font-size:14px;color:var(--ink2);line-height:1.45}
+  .pv-list li b{color:var(--ink);font-weight:700}
+  .pv-list a{color:var(--acc);text-decoration:none}
   .field select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237e8a96' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
   .seg{display:flex;gap:8px}
   .seg label{flex:1;text-align:center;font-family:var(--fb);font-size:13.5px;font-weight:700;color:var(--ink2);background:#0a0d12;border:1px solid var(--line2);border-radius:11px;padding:11px 8px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
@@ -231,6 +245,37 @@
         <input type="checkbox" id="fSpon"/>
         <label for="fSpon">I need visa sponsorship</label>
       </div>
+      <div class="repsec-h">More about you <span class="repsec-opt">optional, sharpens AI ranking</span></div>
+      <div class="field full">
+        <label>Projects</label>
+        <span class="hint">What you have built. Helps the AI judge fit beyond a title.</span>
+        <div id="fProjects" class="rep"></div>
+        <button type="button" class="rep-add" onclick="addProject()">+ Add project</button>
+      </div>
+      <div class="field full">
+        <label>Work experience</label>
+        <span class="hint">Past roles. Title and company at minimum.</span>
+        <div id="fWorkExp" class="rep"></div>
+        <button type="button" class="rep-add" onclick="addExperience()">+ Add role</button>
+      </div>
+      <div class="field full">
+        <label>Education</label>
+        <span class="hint">Degree and school.</span>
+        <div id="fEducation" class="rep"></div>
+        <button type="button" class="rep-add" onclick="addEducation()">+ Add education</button>
+      </div>
+      <div class="field">
+        <label for="fGithub">GitHub <span class="repsec-opt">optional</span></label>
+        <input type="text" id="fGithub" placeholder="github.com/you"/>
+      </div>
+      <div class="field">
+        <label for="fLinkedin">LinkedIn <span class="repsec-opt">optional</span></label>
+        <input type="text" id="fLinkedin" placeholder="linkedin.com/in/you"/>
+      </div>
+      <div class="field full">
+        <label for="fPortfolio">Portfolio <span class="repsec-opt">optional</span></label>
+        <input type="text" id="fPortfolio" placeholder="your-site.com"/>
+      </div>
     </div>
     <button class="btn p" id="formSave" style="margin-top:20px;width:auto;padding:13px 28px" onclick="saveForm()">Save and see my feed →</button>
     <div class="msg" id="formMsg"></div>
@@ -327,6 +372,46 @@ function toggleForm(){
   p.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
+/* Repeatable profile sections (projects / experience / education). Built with the
+   DOM so a user's text is never interpolated into HTML, and read back on save so
+   the manual form is a full editor, not just a quick-start. */
+function repClear(id){ var c=document.getElementById(id); if(c) c.innerHTML=""; }
+function mkField(key, ph, value){
+  var i=document.createElement("input");
+  i.type="text"; i.placeholder=ph; i.className="rep-"+key;
+  if(value!=null && value!=="") i.value=value;
+  return i;
+}
+function addRow(containerId, fields, values){
+  var c=document.getElementById(containerId); if(!c) return;
+  values=values||{};
+  var row=document.createElement("div"); row.className="rep-row";
+  fields.forEach(function(f){ row.appendChild(mkField(f.key, f.ph, values[f.key])); });
+  var del=document.createElement("button");
+  del.type="button"; del.className="rep-del"; del.textContent="Remove";
+  del.onclick=function(){ row.remove(); };
+  row.appendChild(del);
+  c.appendChild(row);
+}
+function addProject(v){ addRow("fProjects",[{key:"name",ph:"Project name"},{key:"stack",ph:"Stack, comma separated"},{key:"summary",ph:"One line on what it does"}], v); }
+function addExperience(v){ addRow("fWorkExp",[{key:"title",ph:"Title"},{key:"company",ph:"Company"},{key:"dates",ph:"Dates, e.g. 2023 to 2025"},{key:"summary",ph:"What you did"}], v); }
+function addEducation(v){ addRow("fEducation",[{key:"degree",ph:"Degree"},{key:"school",ph:"School"},{key:"dates",ph:"Dates"}], v); }
+function readRows(containerId, fields){
+  var out=[];
+  document.querySelectorAll("#"+containerId+" .rep-row").forEach(function(row){
+    var obj={}, any=false;
+    fields.forEach(function(f){
+      var el=row.querySelector(".rep-"+f.key);
+      var v=el?el.value.trim():"";
+      if(f.list){ obj[f.key]=splitList(v); if(obj[f.key].length) any=true; }
+      else { obj[f.key]=v||null; if(v) any=true; }
+    });
+    if(any) out.push(obj);
+  });
+  return out;
+}
+function nonEmpty(o, keys){ for(var i=0;i<keys.length;i++){ var v=o[keys[i]]; if(Array.isArray(v)?v.length:(v!=null&&String(v).trim()!=="")) return true; } return false; }
+
 function buildProfile(){
   const ws=(document.querySelector('input[name="fWork"]:checked')||{}).value||"either";
   // Start from the full parsed profile (resume / your-own-AI) when we have one,
@@ -349,6 +434,10 @@ function buildProfile(){
     onsite_ok: ws==="onsite"||ws==="either",
     locations: splitSemi(val("fLocs"))
   });
+  base.projects = readRows("fProjects",[{key:"name"},{key:"stack",list:true},{key:"summary"}]);
+  base.experience = readRows("fWorkExp",[{key:"title"},{key:"company"},{key:"dates"},{key:"summary"}]);
+  base.education = readRows("fEducation",[{key:"degree"},{key:"school"},{key:"dates"}]);
+  base.links = { github: val("fGithub")||null, linkedin: val("fLinkedin")||null, portfolio: val("fPortfolio")||null };
   return base;
 }
 
@@ -385,6 +474,10 @@ function prefillForm(p){
   if(ye!=null){ if(ye<=0)opt="0"; else if(ye<=2)opt="2"; else if(ye<=5)opt="4"; else opt="7"; }
   setVal("fExp", opt);
   const sp=document.getElementById("fSpon"); if(sp) sp.checked=!!p.requires_sponsorship;
+  repClear("fProjects"); (p.projects||[]).forEach(function(x){ if(nonEmpty(x,["name","summary","stack"])) addProject({name:x.name, stack:(x.stack||[]).join(", "), summary:x.summary}); });
+  repClear("fWorkExp"); (p.experience||[]).forEach(function(x){ if(nonEmpty(x,["title","company","summary","dates"])) addExperience({title:x.title, company:x.company, dates:x.dates, summary:x.summary}); });
+  repClear("fEducation"); (p.education||[]).forEach(function(x){ if(nonEmpty(x,["degree","school","dates"])) addEducation({degree:x.degree, school:x.school, dates:x.dates}); });
+  var lk=p.links||{}; setVal("fGithub", lk.github||""); setVal("fLinkedin", lk.linkedin||""); setVal("fPortfolio", lk.portfolio||"");
   return true;
 }
 
@@ -406,6 +499,15 @@ function renderProfileView(p){
   var pref=p.preferences||{};
   var locs=(pref.locations||[]); if(!locs.length && p.location) locs=[p.location];
   var name=p.name||"";
+  var projects=(p.projects||[]).filter(function(x){return x&&(x.name||x.summary);});
+  var exp=(p.experience||[]).filter(function(x){return x&&(x.title||x.company);});
+  var edu=(p.education||[]).filter(function(x){return x&&(x.degree||x.school);});
+  var lk=p.links||{};
+  function pvBlock(label,inner){return '<div class="pv-row pv-full"><div class="pv-k">'+label+'</div><div class="pv-v">'+inner+'</div></div>';}
+  function liProjects(){return '<ul class="pv-list">'+projects.map(function(x){var s=x.summary?(': '+esc(x.summary)):"";var st=(x.stack&&x.stack.length)?(' ('+esc(x.stack.join(", "))+')'):"";return '<li><b>'+esc(x.name||"Project")+'</b>'+s+st+'</li>';}).join("")+'</ul>';}
+  function liExp(){return '<ul class="pv-list">'+exp.map(function(x){var c=x.company?(' at '+esc(x.company)):"";var d=x.dates?(' ('+esc(x.dates)+')'):"";var s=x.summary?('<br>'+esc(x.summary)):"";return '<li><b>'+esc(x.title||"Role")+'</b>'+c+d+s+'</li>';}).join("")+'</ul>';}
+  function liEdu(){return '<ul class="pv-list">'+edu.map(function(x){var sc=x.school?(', '+esc(x.school)):"";var d=x.dates?(' ('+esc(x.dates)+')'):"";return '<li><b>'+esc(x.degree||"Education")+'</b>'+sc+d+'</li>';}).join("")+'</ul>';}
+  function linksInner(){var a=[];function A(u){var h=/^https?:\/\//.test(u)?u:("https://"+u);return '<a href="'+esc(h)+'" target="_blank" rel="noopener">'+esc(u)+'</a>';}if(lk.github)a.push(A(lk.github));if(lk.linkedin)a.push(A(lk.linkedin));if(lk.portfolio)a.push(A(lk.portfolio));return a.join(' / ');}
   document.getElementById("profileView").innerHTML =
     '<div class="pv">'
     + '<div class="pv-top"><div><div class="pv-eyebrow">Your profile</div>'
@@ -418,6 +520,10 @@ function renderProfileView(p){
     + '<div class="pv-row"><div class="pv-k">Experience</div><div class="pv-v">'+esc(expLabel(p.years_experience))+'</div></div>'
     + '<div class="pv-row"><div class="pv-k">Work preference</div><div class="pv-v">'+esc(workLabel(pref))+'</div></div>'
     + '<div class="pv-row"><div class="pv-k">Visa sponsorship</div><div class="pv-v">'+(p.requires_sponsorship?"Needs sponsorship":"Not needed")+'</div></div>'
+    + (projects.length? pvBlock("Projects", liProjects()) : "")
+    + (exp.length? pvBlock("Work experience", liExp()) : "")
+    + (edu.length? pvBlock("Education", liEdu()) : "")
+    + (linksInner()? pvBlock("Links", linksInner()) : "")
     + '</div>'
     + '<a class="pv-feedlink" href="/app">Go to your live feed →</a>'
     + '</div>';
