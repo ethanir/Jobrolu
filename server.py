@@ -1298,6 +1298,10 @@ def _build_rank_prompt(profile, jobs):
         "Judge on: title/role match, how many required skills the candidate has, "
         "seniority fit, and location vs their preferences. If a posting has little "
         "or no description, score from the title and say the detail was limited.",
+        "A role in a different discipline than the candidate targets (for example a "
+        "data science, data analytics, product management, design, or hardware role "
+        "for a software engineer, or vice versa) is a poor fit and should score low, "
+        "even when some skills overlap.",
         "",
         "Return ONLY a JSON array, one object per job, in this exact shape, and "
         "nothing else:",

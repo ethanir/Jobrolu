@@ -179,8 +179,10 @@ def from_adzuna(queries=None, country="us", pages=5, per_page=50):
     if not (app_id and app_key):
         return []
 
-    queries = queries or ["software engineer", "new grad software engineer",
-                          "backend engineer", "full stack engineer"]
+    queries = queries or ["software engineer", "backend engineer", "full stack engineer",
+                          "frontend engineer", "mobile engineer", "data engineer",
+                          "data scientist", "machine learning engineer", "devops engineer",
+                          "security engineer", "data analyst"]
     out = []
     for what in queries:
         for page in range(1, pages + 1):

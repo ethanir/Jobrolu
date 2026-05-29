@@ -141,7 +141,13 @@ def run(profile_path="profile.example.json", progress=None, top_n=None, draft=Tr
     registry.save(reg)
     emit("Updating registry", 50, f"+{n_new} new companies ({len(reg)} known)")
 
-    jobs = prefilter.prefilter(jobs, profile)
+    # Build the SHARED pool at full breadth: every software / CS / tech role, all
+    # seniorities, all locations, decoupled from any one profile. Per-user scoring
+    # narrows each person's feed afterward, so one pool serves a new grad, a senior,
+    # a data scientist, a security engineer, and so on. (The owner's own ranking
+    # below still scores and LLM-ranks only the owner's top matches, so cost is
+    # unchanged.)
+    jobs = prefilter.prefilter_generic(jobs)
     emit("Prefiltering", 58, f"{len(jobs)} survived")
 
     jobs = score.rank_free(jobs, profile)

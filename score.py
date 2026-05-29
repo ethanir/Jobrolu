@@ -190,9 +190,82 @@ def _looks_swe(target_titles, skills):
     return sum(1 for s in skills if s in swe_skills) >= 2
 
 
+# --- role discipline (so ONE broad pool can stay on-target for every user) ---
+# Each title maps to zero or more disciplines. A job is down-weighted for a user
+# only when BOTH the job and the user classify confidently into DISJOINT
+# disciplines AND their titles share no identifying words. That keeps adjacent
+# engineering roles (security, devops, data, QA, mobile) available to a software
+# engineer, while genuinely different fields (data science, analytics, product,
+# design, hardware) drop out, and an unrecognized title is never penalized.
+_DISC_ENG_RX = re.compile(
+    r"software engineer|software developer|\bswe\b|\bsde\b|\bsdet\b|"
+    r"back.?end|front.?end|full.?stack|web developer|web engineer|"
+    r"application (?:engineer|developer)|platform engineer|infrastructure engineer|"
+    r"cloud engineer|systems engineer|devops|\bsre\b|site reliability|reliability engineer|"
+    r"quality assurance|test engineer|test automation|engineer in test|automation engineer|"
+    r"data engineer|analytics engineer|\betl\b|"
+    r"security engineer|application security|\bappsec\b|\binfosec\b|product security|"
+    r"embedded|firmware|kernel|compiler|distributed systems|"
+    r"mobile (?:engineer|developer)|\bios\b|android|\bprogrammer\b|\bdeveloper\b", re.I)
+_DISC_MLDS_RX = re.compile(
+    r"machine learning|\bml\b|deep learning|\bmlops\b|\bai\b engineer|"
+    r"data scientist|data science|applied scientist|research scientist|"
+    r"\bnlp\b|computer vision|quantitative (?:research|analyst|developer)", re.I)
+_DISC_ANALYTICS_RX = re.compile(
+    r"data analyst|data analytics|business intelligence|\bbi\b analyst|reporting analyst", re.I)
+_DISC_PRODUCT_RX = re.compile(
+    r"product manager|product management|technical program manager|\btpm\b|"
+    r"program manager|product owner", re.I)
+_DISC_DESIGN_RX = re.compile(
+    r"\bux\b|\bui\b designer|user experience|product designer|interaction designer|visual designer", re.I)
+_DISC_HARDWARE_RX = re.compile(
+    r"hardware engineer|electrical engineer|\bfpga\b|\basic\b|\brtl\b|\bpcb\b|analog engineer|\brf\b engineer", re.I)
+
+_DISC_NAMES = {
+    "analytics": "data analytics", "design": "design", "eng": "software engineering",
+    "hardware": "hardware", "ml_ds": "data science / ML", "product": "product management",
+}
+
+
+def role_disciplines(text):
+    """Classify a title (or a user's target titles) into zero or more disciplines.
+    Empty when nothing matches, so an unrecognized title stays neutral and never
+    triggers a penalty. An ML/AI *engineer* counts as BOTH ml_ds and eng, so it
+    fits software and data candidates alike."""
+    t = (text or "").lower()
+    d = set()
+    if _DISC_ENG_RX.search(t):
+        d.add("eng")
+    if _DISC_MLDS_RX.search(t):
+        d.add("ml_ds")
+        if "engineer" in t:                 # an ML/AI *engineer* is also software
+            d.add("eng")
+    if _DISC_ANALYTICS_RX.search(t):
+        d.add("analytics")
+    if _DISC_PRODUCT_RX.search(t):
+        d.add("product")
+    if _DISC_DESIGN_RX.search(t):
+        d.add("design")
+    if _DISC_HARDWARE_RX.search(t):
+        d.add("hardware")
+    return d
+
+
+def _profile_disciplines(target_titles, user_is_swe):
+    """The disciplines the USER targets, unioned across their target titles. Falls
+    back to software engineering only when we otherwise can't tell but the skills
+    say SWE; stays empty when we truly can't classify, so we never penalize blindly."""
+    d = set()
+    for t in (target_titles or []):
+        d |= role_disciplines(t)
+    if not d and user_is_swe:
+        d.add("eng")
+    return d
+
+
 def heuristic_score(job, skills, titles, locs, desired="entry",
                     remote_ok=True, onsite_ok=True, user_years=0,
-                    user_is_swe=True):
+                    user_is_swe=True, user_disc=None):
     """Return (score:int, matched:list, why:list[str], flags:list[str]).
 
     Pure function, no side effects. `why` are positive reasons (shown under "Why you
@@ -213,6 +286,17 @@ def heuristic_score(job, skills, titles, locs, desired="entry",
         why.append(f"Closely matches your target: {thit}")
     elif tpts >= 12:
         why.append(f"In your target area: {thit}")
+
+    # --- discipline fit: keep a broad pool on-target for THIS user ---------
+    # Only fires when both sides classify confidently into disjoint disciplines
+    # AND the titles share no identifying words (tpts < 12), so adjacent
+    # engineering roles and unrecognized titles are never cut.
+    if user_disc and tpts < 12:
+        jdisc = role_disciplines(title)
+        if jdisc and jdisc.isdisjoint(user_disc):
+            score -= 38
+            nm = _DISC_NAMES.get(sorted(jdisc)[0], "a different")
+            flags.append(f"This looks like a {nm} role, outside your target area")
 
     # --- seniority alignment (derived from the user's profile) -------------
     jlevel = _job_level(title)
@@ -318,6 +402,7 @@ def rank_free(jobs, profile):
     onsite_ok = pref.get("onsite_ok", True)
     desired = desired_level(profile)
     user_is_swe = _looks_swe(titles, skills)
+    user_disc = _profile_disciplines(titles, user_is_swe)
     try:
         user_years = float(profile.get("years_experience") or 0)
     except (TypeError, ValueError):
@@ -326,7 +411,8 @@ def rank_free(jobs, profile):
     for j in jobs:
         s, m, why, flags = heuristic_score(
             j, skills, titles, locs, desired=desired, remote_ok=remote_ok,
-            onsite_ok=onsite_ok, user_years=user_years, user_is_swe=user_is_swe)
+            onsite_ok=onsite_ok, user_years=user_years, user_is_swe=user_is_swe,
+            user_disc=user_disc)
         j["_score"] = s
         j["_matched"] = m
         j["_why"] = why
