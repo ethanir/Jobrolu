@@ -1195,6 +1195,39 @@ def _candidate_brief(profile):
     return line, level
 
 
+def _slim_projects(projects):
+    """Serialize the candidate's projects for the ranking prompt. A bare name
+    tells the AI nothing, so we include each project's tech stack and a short
+    summary when they exist (the resume parser fills these). This both grounds
+    the ranking in real, demonstrated skills and keeps the stack-to-project link
+    available for later tailored outreach. Projects with only a name still pass
+    the name through; anything richer carries its detail."""
+    out = []
+    for p in (projects or []):
+        if isinstance(p, str):
+            name = p.strip()
+            if name:
+                out.append({"name": name})
+            continue
+        if not isinstance(p, dict):
+            continue
+        entry = {}
+        name = p.get("name")
+        if isinstance(name, str) and name.strip():
+            entry["name"] = name.strip()
+        stack = p.get("stack") or p.get("skills") or p.get("technologies")
+        if isinstance(stack, list):
+            cleaned = [str(s).strip() for s in stack if str(s).strip()]
+            if cleaned:
+                entry["stack"] = cleaned[:12]
+        summary = p.get("summary") or p.get("description")
+        if isinstance(summary, str) and summary.strip():
+            entry["summary"] = summary.strip()[:240]
+        if entry:
+            out.append(entry)
+    return out
+
+
 def _build_rank_prompt(profile, jobs):
     """The exact prompt a visitor pastes into their own AI. Same shape as
     export_rank.py: a JSON array of {id, score, tier, reasons, matched_skills,
@@ -1206,7 +1239,7 @@ def _build_rank_prompt(profile, jobs):
         "requires_sponsorship": profile.get("requires_sponsorship"),
         "skills": profile.get("skills"),
         "preferences": profile.get("preferences"),
-        "projects": [p.get("name") for p in (profile.get("projects") or []) if isinstance(p, dict)],
+        "projects": _slim_projects(profile.get("projects")),
     }
     brief, level = _candidate_brief(profile)
     # The seniority rule is written to match THIS candidate, not a fixed persona.
@@ -1256,25 +1289,64 @@ def _build_rank_prompt(profile, jobs):
 
 
 def _extract_json_array(text):
-    """Pull the first JSON array out of arbitrary pasted text (handles code
-    fences and surrounding chatter). Mirrors import_rank.py."""
+    """Pull the ranking objects out of arbitrary pasted text. Tolerant by
+    design: it handles code fences, chatter before/after the array, AND a reply
+    that got cut off partway through, which is a very common outcome for a long
+    list. We walk the text and collect every COMPLETE {...} object, tracking
+    string state so braces inside strings never miscount, and ignore a trailing
+    half-written object. A truncated paste therefore still saves everything that
+    made it through, which is exactly what the modal promises."""
     import re
     text = (text or "").strip()
     text = re.sub(r"^```(?:json)?", "", text).strip()
     text = re.sub(r"```$", "", text).strip()
+    # Fast path: a clean, complete array (or object) parses directly.
     try:
         v = json.loads(text)
-        return v if isinstance(v, list) else None
+        if isinstance(v, list):
+            return v
+        if isinstance(v, dict):
+            return [v]
     except Exception:
         pass
-    i, j = text.find("["), text.rfind("]")
-    if i != -1 and j != -1 and j > i:
-        try:
-            v = json.loads(text[i:j + 1])
-            return v if isinstance(v, list) else None
-        except Exception:
-            return None
-    return None
+    # Tolerant path: collect complete top-level objects one at a time. This
+    # survives a missing closing bracket and a cut-off final object.
+    start = text.find("[")
+    if start == -1:
+        start = 0
+    objs = []
+    depth = 0          # brace depth of the object currently being read
+    obj_start = -1
+    in_str = False
+    escape = False
+    for k in range(start, len(text)):
+        c = text[k]
+        if in_str:
+            if escape:
+                escape = False
+            elif c == "\\":
+                escape = True
+            elif c == '"':
+                in_str = False
+            continue
+        if c == '"':
+            in_str = True
+        elif c == "{":
+            if depth == 0:
+                obj_start = k
+            depth += 1
+        elif c == "}":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and obj_start != -1:
+                    try:
+                        o = json.loads(text[obj_start:k + 1])
+                        if isinstance(o, dict):
+                            objs.append(o)
+                    except Exception:
+                        pass
+                    obj_start = -1
+    return objs or None
 
 
 def _clean_str_list(v, max_items, max_len):
