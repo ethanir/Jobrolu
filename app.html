@@ -349,7 +349,7 @@
   <div class="modal wide" style="position:relative">
     <button class="modal-x" onclick="closeRank()" aria-label="close">×</button>
     <h2>Rank my matches</h2>
-    <p>Your scores are quick keyword estimates right now. Have your own ChatGPT or Claude read your top matches in full, for free, and your feed updates with real scores.</p>
+    <p>These scores are quick keyword estimates. Have your own ChatGPT or Claude read your top matches in full, free, and the feed updates with real scores.</p>
     <div class="rankdepth" id="rankDepth" role="group" aria-label="Ranking depth">
       <button type="button" class="on" data-depth="broad" onclick="setRankDepth('broad')">Broad</button>
       <button type="button" data-depth="balanced" onclick="setRankDepth('balanced')">Balanced</button>
@@ -358,10 +358,10 @@
     <div class="rankdepth-note" id="rankDepthNote"></div>
     <div class="rankn">
       <div class="ranksend" id="rankSend">Sending your top matches&hellip;</div>
-      <div class="rankn-warn">If your AI's reply gets cut off, just paste whatever it gave back and save. Anything it missed stays one click away.</div>
+      <div class="rankn-warn">If the reply gets cut off, paste what you got and save; the rest stays one click away.</div>
     </div>
     <div class="ranksteps" id="rankSteps">
-      <div class="rankstep"><div class="rn">1</div><div class="rt"><b>Copy this prompt</b> and paste it into ChatGPT or Claude (free web version is fine), then send.</div></div>
+      <div class="rankstep"><div class="rn">1</div><div class="rt"><b>Copy this prompt</b> into ChatGPT or Claude (free web is fine) and send.</div></div>
       <div class="rankbox">
         <div class="rankbar">
           <span class="rankbar-label" id="rankPromptLabel">Prompt for your AI</span>
@@ -372,7 +372,7 @@
         </div>
         <textarea class="promptview" id="rankPrompt" readonly onclick="this.select()">Loading your top matches...</textarea>
       </div>
-      <div class="rankstep"><div class="rn">2</div><div class="rt"><b>Copy the JSON</b> your AI returns and <b>paste it below</b>, then save.</div></div>
+      <div class="rankstep"><div class="rn">2</div><div class="rt"><b>Paste the JSON</b> it gives back below, then save.</div></div>
       <textarea id="rankIn" placeholder="Paste the JSON array your AI returned here..."></textarea>
       <button class="modal-btn" id="rankSaveBtn" style="margin-top:14px" onclick="saveRank()">Save my rankings →</button>
     </div>
@@ -653,7 +653,7 @@ function updateRankInfo(){
   const n=Math.min(un, cap);
   el.innerHTML = un<=cap
     ? ("Sending all <b>"+un+"</b> of your roles still on estimates.")
-    : ("Sending your top <b>"+n+"</b> of "+un+" on estimates. Save, then click again for the rest.");
+    : ("Sending your top <b>"+n+"</b> of "+un+". Save, then click again for the rest.");
 }
 function setPromptLabel(text){ const l=document.getElementById("rankPromptLabel"); if(l) l.textContent=text; }
 function loadRankPrompt(){
