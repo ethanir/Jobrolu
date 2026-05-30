@@ -822,61 +822,6 @@ def stats():
     return data
 
 
-_RECENT_CACHE = {"data": None, "at": 0.0}
-_RECENT_LOCK = threading.Lock()
-_RECENT_TTL = 60.0
-
-
-@app.get("/api/recent")
-def recent():
-    """A handful of the most recently added / posted roles, for the live ticker.
-    Real roles only, never synthetic. Cached and capped so it stays cheap; the set
-    changes at most once per scan. Newly added roles (is_new) surface first, then
-    the most recently posted."""
-    now = time.time()
-    with _RECENT_LOCK:
-        c = _RECENT_CACHE
-        if c["data"] is not None and (now - c["at"]) < _RECENT_TTL:
-            return c["data"]
-    items = []
-    try:
-        pool = _pool_list()
-
-        def _ts(j):
-            v = j.get("date_posted")
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                return 0.0
-
-        ranked = sorted(pool, key=lambda j: (1 if j.get("is_new") else 0, _ts(j)),
-                        reverse=True)
-        seen = set()
-        for j in ranked:
-            title = (j.get("title") or "").strip()
-            comp = (j.get("company") or "").strip()
-            if not title or not comp:
-                continue
-            key = (comp.lower(), title.lower())
-            if key in seen:
-                continue
-            seen.add(key)
-            items.append({
-                "title": title[:80],
-                "company": comp[:48],
-                "location": (j.get("location") or "").strip()[:48],
-            })
-            if len(items) >= 18:
-                break
-    except Exception:
-        items = []
-    data = {"roles": items}
-    with _RECENT_LOCK:
-        _RECENT_CACHE["data"] = data
-        _RECENT_CACHE["at"] = now
-    return data
-
-
 @app.get("/api/jobs")
 def list_jobs(request: Request, tier: str = "all"):
     user_id = request.state.user_id

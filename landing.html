@@ -71,15 +71,6 @@
   .live .lsep{color:var(--line2);font-weight:700}
   .live .lx{font-size:12.5px;font-weight:600;color:var(--mut);line-height:1.1}
   @media(prefers-reduced-motion:reduce){.live .ld::after{animation:none}}
-  .tick{position:relative;margin:26px auto 0;max-width:720px;overflow:hidden;display:none;-webkit-mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent)}
-  .tick-track{display:flex;gap:10px;width:max-content;animation:tickscroll 50s linear infinite}
-  .tick:hover .tick-track{animation-play-state:paused}
-  @keyframes tickscroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-  .tick-chip{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;background:#10141b;border:1px solid var(--line2);border-radius:10px;padding:7px 13px;white-space:nowrap}
-  .tick-chip .d{width:6px;height:6px;flex:0 0 auto;border-radius:99px;background:var(--acc);box-shadow:0 0 7px var(--acc)}
-  .tick-chip .t{font-family:var(--fd);font-size:13px;font-weight:600;color:var(--ink)}
-  .tick-chip .c{font-size:12.5px;color:var(--mut)}
-  @media(prefers-reduced-motion:reduce){.tick-track{animation:none;flex-wrap:wrap;justify-content:center;width:auto}}
 
   /* the funnel: many roles -> ranked -> read in full -> the few that fit */
   .funnel{display:flex;align-items:stretch;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:36px;width:100%;max-width:880px}
@@ -182,7 +173,6 @@
     <span class="lsep">·</span>
     <span class="lx" id="liveSub">updated daily</span>
   </a>
-  <div class="tick" id="tick" aria-label="Recently added roles"><div class="tick-track" id="tickTrack"></div></div>
 
   <div class="funnel rv d5">
     <div class="stage">
@@ -388,19 +378,6 @@ function lsignout(e){ if(e) e.preventDefault(); fetch("/api/auth/logout",{method
   }
   load();
   setInterval(load, 60000);   // honest refresh: reflects real pool changes only
-})();
-(function(){
-  var box=document.getElementById("tick"), track=document.getElementById("tickTrack");
-  if(!box||!track) return;
-  function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-  fetch("/api/recent",{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){
-    var roles=(d&&d.roles)||[];
-    if(roles.length<5) return;
-    function chip(x){ return '<span class="tick-chip"><span class="d"></span><span class="t">'+esc(x.title)+'</span><span class="c">'+esc(x.company)+'</span></span>'; }
-    var html=roles.map(chip).join("");
-    track.innerHTML = html + html;          // duplicate for a seamless loop
-    box.style.display="block";
-  }).catch(function(){});
 })();
 </script>
 </body>
