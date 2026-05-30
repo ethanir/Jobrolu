@@ -70,12 +70,19 @@ def _good_slug(t):
 
 
 def _workday_token(raw):
-    """Aggregator 'tenant|server|site' -> our 'tenant/site/wdN'."""
+    """Aggregator 'tenant|server|site' -> our 'tenant/site/wdN'.
+
+    The source mixes in malformed rows of the form 'wdN|wd1|site' where the
+    tenant slot holds a datacenter code, not a real tenant; those produce dead
+    URLs like https://wd102.wd1.myworkdayjobs.com/... and must be skipped. A real
+    tenant is never just 'wdN', so reject that case."""
     parts = (raw or "").split("|")
     if len(parts) != 3:
         return None
     tenant, server, site = (p.strip() for p in parts)
     if not (tenant and server and site) or not re.fullmatch(r"wd\d+", server):
+        return None
+    if re.fullmatch(r"wd\d+", tenant):
         return None
     return f"{tenant}/{site}/{server}"
 
