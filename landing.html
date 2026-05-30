@@ -151,6 +151,7 @@
 <nav>
   <div class="brand"><span class="mk"></span>Jobrolu</div>
   <div class="nav-r" id="navR">
+    <a class="txt" href="/coverage">Coverage</a>
     <a class="txt" href="/signin">Sign in</a>
     <a class="pill" href="/signin?new=1">Get started</a>
   </div>
@@ -333,7 +334,8 @@ function lsignout(e){ if(e) e.preventDefault(); fetch("/api/auth/logout",{method
     var nav=document.getElementById("navR");
     if(nav){
       var email=esc(m.email);
-      nav.innerHTML = (email?('<span class="navmail">'+email+'</span>'):'')
+      nav.innerHTML = '<a class="txt" href="/coverage">Coverage</a>'
+        + (email?('<span class="navmail">'+email+'</span>'):'')
         + '<a class="pill" href="/app">Go to your feed</a>'
         + '<a class="txt" href="#" onclick="lsignout(event)">Sign out</a>';
     }

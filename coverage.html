@@ -245,6 +245,38 @@ function render(d){
       document.getElementById("bigsub").textContent="We couldn't load the live numbers just now. Please refresh in a moment.";
     });
 })();
+
+// Keep the hero number live without re-running the heavy coverage scan: poll the
+// cheap stats endpoint and ease from the current value to the new one. This is the
+// same number the landing and in-app trackers show, so every counter stays in sync.
+(function(){
+  var big=document.getElementById("bignum");
+  if(!big) return;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function cur(){ var n=parseInt((big.textContent||"").replace(/[^0-9]/g,""),10); return isNaN(n)?0:n; }
+  var raf=0;
+  function ease(to){
+    if(big.classList.contains("dim")) return;     // leave the empty/error state alone
+    var from=cur();
+    if(to<=0 || to===from) return;
+    if(reduce){ big.textContent=fmt(to); return; }
+    var start=null, dur=900;
+    if(raf) cancelAnimationFrame(raf);
+    function step(ts){
+      if(!start) start=ts;
+      var p=Math.min(1,(ts-start)/dur), e=1-Math.pow(1-p,3);
+      big.textContent=fmt(Math.round(from+(to-from)*e));
+      if(p<1){ raf=requestAnimationFrame(step); } else { raf=0; }
+    }
+    raf=requestAnimationFrame(step);
+  }
+  function tick(){
+    fetch("/api/stats",{credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){
+      if(d && d.roles) ease(d.roles);
+    }).catch(function(){});
+  }
+  setInterval(tick, 60000);
+})();
 </script>
 </body>
 </html>
