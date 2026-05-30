@@ -14,7 +14,7 @@
 
 The engine is **done**. It sources, ranks, drafts outreach, and runs cheap. It found real strong-fit roles and was used to apply to them.
 
-The **only** meaningful work left is **coverage**: the ranking is smart, but it can only rank jobs that make it into the funnel, and right now the funnel sees ~400 companies on 6 ATS types. Widen that, then ship it as a named product with a domain and a landing page.
+The biggest ongoing lever is **coverage**: the ranking is smart, but it can only rank jobs that make it into the funnel, and the funnel has since grown from ~400 companies on 6 ATS types to ~5,266 companies across 9 job systems. The product shipped as Jobrolu (jobrolu.com); widening coverage continues.
 
 That's the whole remaining plan. Everything else is polish.
 
@@ -23,7 +23,7 @@ That's the whole remaining plan. Everything else is polish.
 ## The two-stage funnel (why coverage is the lever)
 
 ```
-   ALL pulled roles  ~40,000
+   ALL pulled roles  ~90,000
           |
           |   stage 1 - FREE heuristic score (fast, crude keyword/title match)
           v
@@ -46,8 +46,8 @@ That's the whole remaining plan. Everything else is polish.
 
 | Done | Capability |
 |---|---|
-| ✅ | Multi-ATS sourcing - Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, Workable (parallel, ~40k roles in <1 min) |
-| ✅ | Self-growing company registry (~400 companies) |
+| ✅ | Multi-ATS sourcing - Greenhouse, Lever, Ashby, SmartRecruiters, Recruitee, Workable, Workday, plus USAJOBS (parallel; ~90k roles live) |
+| ✅ | Self-growing company registry (~5,266 companies) |
 | ✅ | Free prefilter + cost-correct LLM funnel (~$1 first run, near-free after) |
 | ✅ | Seen-job cache - re-runs only pay for genuinely new jobs |
 | ✅ | Honest fit ranking - Strong / Possible / Skip, with reasons and gaps |

@@ -10,26 +10,28 @@ value-per-effort, and the honesty rules for the public coverage page.
 
 ## Where we stand today (verified, live on /coverage)
 
-Live pool: ~52,200 open roles across ~1,516 tracked companies and 9 job systems.
+Live pool: ~90,250 open roles across ~5,266 tracked companies and 9 job systems.
 
-Sources live now: Greenhouse (~28k roles), Ashby (~7k), Lever (~6.5k),
+Sources live now: Greenhouse (~51.7k roles), Ashby (~14k), Lever (~14k),
 SmartRecruiters (~4.4k), USAJOBS (~3k federal), Workday (~1.4k), the Simplify
 new-grad repo (~1.4k), Workable (~0.3k), and Recruitee. Adzuna (keyword snippets)
-is keyed and available. USAJOBS is now ON, adding federal coverage across fields.
+is keyed and available. USAJOBS is live, adding federal coverage across fields.
 
-By field, software is the deepest (~11k) and a large cross-field "other" bucket
-leads on raw count (~29k). The professional non-tech fields are live but still
-thin, and are the growth target: finance ~890, healthcare ~870, HR ~720,
-operations ~690, legal ~535, design ~380, data analytics ~330, education ~210.
+By field, a large cross-field "other" bucket leads on raw count (~51.6k) and
+software is the deepest single tech field (~17.2k). Then sales ~6.1k, product
+~2.9k, data / ML ~2.7k, marketing ~2.7k, finance ~1.7k, healthcare ~1.4k, HR
+~1.3k, operations ~1.2k, legal ~843, design ~770, hardware ~649, education ~583,
+data analytics ~554. The non-tech professional fields are live and growing but
+remain the headroom, since the modern ATSes we read skew tech.
 
 The honest gaps that remain:
 
 - Enterprise portals are still mostly unread. We now read some Workday, but iCIMS,
   SAP SuccessFactors, and Oracle/Taleo (which power much large-employer finance,
   healthcare, retail, and manufacturing hiring) are not integrated yet.
-- Within the systems we already support, the registry (~1,516 companies) is still
-  a small fraction of what is reachable. Greenhouse alone lists thousands of
-  boards, so there is room to keep growing with the code we already have.
+- Within the tech ATSes we already support there is still headroom: roughly 10k
+  more known Greenhouse / Lever / Ashby boards remain unharvested. The remaining
+  non-tech headroom is larger still and needs the diverse ATSes and Workday.
 
 Rough, honest estimates (never published as facts; the true denominator is
 unknowable): tech / new-grad coverage is meaningful and climbing; non-tech is
@@ -56,8 +58,10 @@ registry directly multiplies the roles we pull, with zero new integration work.
 - Watch `BASE_KEEP` (currently 2000) as the pool grows; raise it if good roles
   are being truncated out of the scored base.
 
-Target: go from ~515 to a few thousand well-chosen companies. This alone should
-roughly double or triple a tech user's pool.
+Target: go from ~515 to several thousand well-chosen companies. Done so far: the
+registry is at ~5,266 companies and the pool roughly tripled (49k to ~90k). Tech
+ATS headroom remains (~10k more known boards); the next batches finish tech, then
+turn to non-tech.
 
 ### Phase 2 - Add Workday (biggest coverage gap, unlocks non-tech)
 Workday is the single most impactful new source, especially for the "every field"
@@ -116,7 +120,7 @@ without any change to the page.
 ---
 
 ## Shipped recently
-- USAJOBS is live (federal coverage across every field); pool grew ~49k to ~52k.
+- USAJOBS is live (federal coverage across every field).
 - `from_workday(...)` is built and live (a first batch of Workday tenants is in).
 - Performance: feed scoring is serialized per profile (no pile-ups or hangs), and
   the cold scoring path now reads full descriptions only for roles with a
@@ -126,8 +130,14 @@ without any change to the page.
   coverage page, all reading one cheap `/api/stats` and staying in sync.
 - A `/coverage` link is now in both the landing nav and the app nav (reachable
   everywhere, not just by direct URL).
-- An honest "recently added roles" ticker on the landing and coverage pages
-  (`/api/recent`): real titles and companies only, never synthetic motion.
+- Registry growth, in verified batches: +950 tech boards (batch 1), then +2,800
+  tech boards (batch 2). Pool grew 49k to ~90k across these. Each batch validated
+  for zero removed / altered / malformed entries before deploy, and the site
+  confirmed healthy at the new size before the next batch.
+- A short-lived "recently added roles" ticker was tried on landing and coverage,
+  then removed: with reduce-motion enabled it fell back to a messy stacked layout.
+  The live number counter stays; it is honest (real pool size, climbs only on real
+  change) and looks clean.
 
 ## Maximization strategy (current)
 The goal is the ultimate tool for EVERY field, so the priority is **diverse**
