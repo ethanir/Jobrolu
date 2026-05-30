@@ -1361,6 +1361,20 @@ RANK_DEPTH_PRESETS = {
 }
 
 
+def _trim_words(text, n):
+    """Cut text to at most n chars on a word boundary, adding a trailing ellipsis
+    when it was actually shortened, so a posting that hits the cap never ends
+    mid-word."""
+    text = text or ""
+    if len(text) <= n:
+        return text
+    cut = text[:n]
+    sp = cut.rfind(" ")
+    if sp > int(n * 0.6):          # back off to the last space if it is reasonably near the end
+        cut = cut[:sp]
+    return cut.rstrip() + " ..."
+
+
 def _rank_candidates(user_id, profile, limit, desc_chars=RANK_DESC_CHARS):
     """The visitor's top-N jobs to hand their AI: highest free score first,
     skipping ones they have already had verified, each keyed by the SAME id the
@@ -1403,7 +1417,7 @@ def _rank_candidates(user_id, profile, limit, desc_chars=RANK_DESC_CHARS):
             "location": j["location"],
             "source": j.get("source", ""),
             "url": j.get("url", ""),
-            "description": (desc or "")[:desc_chars],
+            "description": _trim_words(desc, desc_chars),
         })
         if len(out) >= limit:
             break
@@ -1415,7 +1429,7 @@ def _rank_candidates(user_id, profile, limit, desc_chars=RANK_DESC_CHARS):
             import enrich_desc
             enrich_desc.backfill(out, cap=RANK_ENRICH_CAP)
             for c in out:
-                c["description"] = (c.get("description", "") or "")[:desc_chars]
+                c["description"] = _trim_words(c.get("description", ""), desc_chars)
         except Exception:
             pass
     return out
@@ -1572,6 +1586,13 @@ def _build_rank_prompt(profile, jobs):
         if j["description"]:
             lines.append(f"Description: {j['description']}")
         lines.append("")
+    # A clear close: a long final description can hit the per-job cap, so without
+    # this the prompt would end mid-posting. The output instruction is repeated
+    # here so it is the last thing the AI reads on a long prompt.
+    lines.append(f"--- end of {len(jobs)} jobs ---")
+    lines.append("")
+    lines.append("Now return ONLY the JSON array described above: one object per "
+                 "job, in the same order, and nothing else.")
     return "\n".join(lines)
 
 

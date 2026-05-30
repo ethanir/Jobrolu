@@ -266,7 +266,7 @@
   .rankbox{margin:6px 0 14px}
   .rankbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .rankbar-label{font-family:var(--fu);font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
-  .rankbox textarea.promptview{width:100%;height:130px;background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:14px;color:var(--mut);font-family:var(--fu);font-size:12px;line-height:1.5;resize:vertical;outline:none;white-space:pre}
+  .rankbox textarea.promptview{width:100%;height:130px;background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:14px;color:var(--mut);font-family:var(--fu);font-size:12px;line-height:1.5;resize:vertical;outline:none;white-space:pre-wrap;overflow-wrap:anywhere}
   .rankn{background:#0a0d12;border:1px solid var(--line2);border-radius:12px;padding:13px 15px;margin:4px 0 16px}
   .rankn-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
   .rankn-label{font-family:var(--fu);font-size:13px;font-weight:700;color:var(--ink2)}
@@ -353,7 +353,7 @@
       <div class="rankstep"><div class="rn">1</div><div class="rt"><b>Copy this prompt</b> and paste it into ChatGPT or Claude (free web version is fine), then send.</div></div>
       <div class="rankbox">
         <div class="rankbar">
-          <span class="rankbar-label">Prompt for your AI</span>
+          <span class="rankbar-label" id="rankPromptLabel">Prompt for your AI</span>
           <button class="rankcopy" id="rankCopyBtn" onclick="copyRankPrompt()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             Copy
@@ -602,17 +602,25 @@ function updateRankInfo(){
     ? ("Sending all <b>"+un+"</b> of your roles still on estimates.")
     : ("Sending your top <b>"+n+"</b> of "+un+" on estimates. Save, then click again for the rest.");
 }
+function setPromptLabel(text){ const l=document.getElementById("rankPromptLabel"); if(l) l.textContent=text; }
 function loadRankPrompt(){
   const pre = document.getElementById("rankPrompt");
   const seq = ++RANK_FETCH_SEQ;          // only the latest request may update the box
   RANK_PROMPT = "";
+  setPromptLabel("Prompt for your AI");
   pre.value = "Building your prompt\u2026";
   fetch(API+"/api/rank/byo?depth="+encodeURIComponent(RANK_DEPTH),{credentials:"same-origin"}).then(r=>r.json()).then(d=>{
     if(seq!==RANK_FETCH_SEQ) return;
     const msg=document.getElementById("rankMsg");
-    if(d.ok && d.prompt){ RANK_PROMPT = d.prompt; pre.value = d.prompt; msg.className="modal-msg"; msg.textContent=""; }
+    if(d.ok && d.prompt){
+      RANK_PROMPT = d.prompt; pre.value = d.prompt;
+      pre.scrollTop = 0; pre.scrollLeft = 0;            // always show the start, never a mid-fragment
+      const words = (d.prompt.trim().match(/\S+/g)||[]).length;
+      setPromptLabel("Prompt for your AI \u00b7 "+words.toLocaleString()+" words");
+      msg.className="modal-msg"; msg.textContent="";
+    }
     else{ RANK_PROMPT=""; pre.value = ""; msg.className="modal-msg"; msg.textContent = d.error || "Couldn't build the prompt."; }
-  }).catch(()=>{ if(seq!==RANK_FETCH_SEQ) return; RANK_PROMPT=""; pre.value=""; document.getElementById("rankMsg").textContent = "Can't reach the server."; });
+  }).catch(()=>{ if(seq!==RANK_FETCH_SEQ) return; RANK_PROMPT=""; pre.value=""; setPromptLabel("Prompt for your AI"); document.getElementById("rankMsg").textContent = "Can't reach the server."; });
 }
 function closeRank(){ document.getElementById("rankBg").classList.remove("show"); }
 function copyRankPrompt(){
