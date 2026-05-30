@@ -86,6 +86,31 @@
   /* footer line, now at the end of the page */
   .foot{text-align:center;padding:34px 0 26px;font-size:12px;color:var(--mut);font-weight:600}
 
+  /* see it work: a real AI match card */
+  .see{padding:64px 38px 0;text-align:center;border-top:1px solid var(--line)}
+  .see-h{font-family:var(--fd);font-weight:600;font-size:clamp(24px,3vw,34px);letter-spacing:-.02em;margin:0 0 12px}
+  .see-sub{font-size:clamp(14px,1.6vw,17px);color:var(--ink2);max-width:54ch;margin:0 auto 30px;line-height:1.55}
+  .mc{max-width:600px;margin:0 auto;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px 28px}
+  .mc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+  .mc-lbl{font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--mut);text-transform:uppercase}
+  .mc-title{font-family:var(--fd);font-weight:600;font-size:clamp(19px,2.3vw,25px);color:var(--ink);margin:7px 0 9px;line-height:1.15}
+  .mc-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;color:var(--mut);font-weight:600}
+  .mc-verified{font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--acc);background:var(--accdim);border:1px solid #224f38;border-radius:99px;padding:3px 10px}
+  .mc-ring{flex:0 0 auto;width:74px;height:74px;border-radius:50%;border:4px solid var(--acc);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 18px var(--accglow)}
+  .mc-ring b{font-family:var(--fd);font-size:25px;font-weight:600;color:var(--ink);line-height:1}
+  .mc-ring span{font-size:9px;font-weight:800;letter-spacing:.12em;color:var(--acc);margin-top:2px}
+  .mc-div{height:1px;background:var(--line);margin:20px 0}
+  .mc-k{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--mut);text-transform:uppercase;margin-bottom:9px}
+  .mc-why{display:flex;gap:9px;align-items:flex-start;font-size:14.5px;color:var(--ink2);line-height:1.5}
+  .mc-why .ck{color:var(--acc);font-weight:800;flex:0 0 auto}
+  .mc-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:20px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{font-size:12.5px;font-weight:700;border-radius:8px;padding:5px 11px}
+  .chip.fit{color:var(--acc);background:var(--accdim);border:1px solid #224f38}
+  .chip.gap{color:#e0a868;background:#2a2316;border:1px solid #45371f}
+  .see-note{font-size:13px;color:var(--mut);font-weight:600;margin:26px auto 0;max-width:52ch;line-height:1.5}
+  @media(max-width:620px){.mc-cols{grid-template-columns:1fr;gap:16px}.see{padding:48px 24px 0}}
+
   /* who it's for */
   .who{padding:66px 38px 6px;border-top:1px solid var(--line)}
   .who-in{max-width:980px;margin:0 auto}
@@ -172,6 +197,35 @@
   </div>
 </main>
 </div>
+
+<section class="see">
+  <h2 class="see-h">See it work</h2>
+  <p class="see-sub">For your top roles, an AI reads the entire posting and shows you exactly why you fit and what's missing, instead of guessing from keywords.</p>
+  <div class="mc">
+    <div class="mc-top">
+      <div>
+        <div class="mc-lbl">Your match</div>
+        <div class="mc-title">Software Engineer (New grad)</div>
+        <div class="mc-meta">San Francisco · Ashby · <span class="mc-verified">AI VERIFIED</span></div>
+      </div>
+      <div class="mc-ring"><b>92</b><span>FIT</span></div>
+    </div>
+    <div class="mc-div"></div>
+    <div class="mc-k">Why you fit</div>
+    <div class="mc-why"><span class="ck">✓</span><span>New grad role on an AI coding product, an excellent match for your projects and stack.</span></div>
+    <div class="mc-cols">
+      <div>
+        <div class="mc-k">You match</div>
+        <div class="chips"><span class="chip fit">TypeScript</span><span class="chip fit">Node.js</span><span class="chip fit">React</span></div>
+      </div>
+      <div>
+        <div class="mc-k">Gaps</div>
+        <div class="chips"><span class="chip gap">Next.js</span><span class="chip gap">open-source maintenance</span><span class="chip gap">algorithmic depth</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="see-note">Your free feed ranks every role instantly. Pro turns on the AI read that produces matches like this.</p>
+</section>
 
 <section class="who">
   <div class="who-in">
