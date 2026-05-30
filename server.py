@@ -538,6 +538,7 @@ def _compute_scored_base(profile, token, key):
             "source": j.get("source", "") or j.get("ats", "") or "",
             "description": (j.get("description", "") or "")[:700],
             "is_new": j.get("is_new", False),
+            "first_seen": j.get("first_seen", "") or "",
             "date_posted": j.get("date_posted"),
             "_score": j.get("_score", 0),
             "_matched": j.get("_matched", []),
@@ -581,6 +582,7 @@ def _shape(job):
         "draft": job.get("draft", ""),
         "linkedin_search": job.get("linkedin_search", ""),
         "is_new": job.get("is_new", False),
+        "first_seen": job.get("first_seen", "") or "",
         "status": job.get("status", "") or "",
         "posted_ts": posted_ts,
     }
@@ -720,6 +722,15 @@ _SYSTEM_LABELS = {
 }
 
 
+# The coverage scan iterates the entire pool, so it is expensive at 120k+ roles.
+# We compute it at most once per pool version (and at most once per TTL as a
+# backstop) and serve the stored result, which keeps the public coverage page
+# instant instead of recomputing on every visit. The pool only changes on a
+# scan, so this is never stale by more than one scan or the TTL.
+_COV_CACHE = {"data": None, "token": None, "ts": 0.0}
+_COV_TTL = 600.0
+
+
 @app.get("/api/coverage")
 def coverage():
     """Self-measured coverage stats from Jobrolu's OWN live pool and registry.
@@ -731,6 +742,11 @@ def coverage():
     engineer is both software and data); field counts therefore do not sum to the
     role total, and the page presents them as relative volume, not a share."""
     import score
+    now = time.time()
+    token = _pool_token()
+    c = _COV_CACHE
+    if c["data"] is not None and c["token"] == token and (now - c["ts"]) < _COV_TTL:
+        return c["data"]
     pool = _pool_list()  # READ-ONLY shared pool (DB-first, file fallback)
     companies = set()
     by_field = {}
@@ -768,7 +784,7 @@ def coverage():
     systems = [{"key": s, "label": _SYSTEM_LABELS.get(s, s.title()),
                 "count": by_system[s]} for s in by_system]
     systems.sort(key=lambda x: -x["count"])
-    return {
+    result = {
         "live_roles": len(pool),
         "companies_live": len(companies),
         "companies_tracked": tracked,
@@ -776,6 +792,8 @@ def coverage():
         "systems": systems,
         "updated": int(time.time()),
     }
+    _COV_CACHE.update(data=result, token=token, ts=now)
+    return result
 
 
 _STATS_CACHE = {"data": None, "at": 0.0}

@@ -472,7 +472,12 @@ function clearSearch(){
   setSearch("");
 }
 
-function counts(){const src=searchedJobs();const c={all:src.length,strong:0,possible:0,skip:0};src.forEach(j=>{c[j.tier]=(c[j.tier]||0)+1});return c;}
+/* "Recent" = first seen in our pool within the last 7 days. first_seen is an ISO
+   date (YYYY-MM-DD), so a lexical >= against the cutoff is correct. Display-only:
+   it never changes a job's tier, score, or order within a view. */
+function recentCutoff(){ return new Date(Date.now()-7*86400000).toISOString().slice(0,10); }
+function isRecent(j){ return !!(j.first_seen && j.first_seen >= recentCutoff()); }
+function counts(){const src=searchedJobs();const cut=recentCutoff();const c={all:src.length,strong:0,possible:0,skip:0,recent:0};src.forEach(j=>{c[j.tier]=(c[j.tier]||0)+1;if(j.first_seen&&j.first_seen>=cut)c.recent++;});return c;}
 
 /* ---------- bring-your-own-AI ranking ---------- */
 /* The banner only shows on a visitor's heuristic feed that still has unverified
@@ -691,11 +696,11 @@ function saveRank(){
 
 function render(){
   const c = counts();
-  const tiers = [["strong","Strong"],["possible","Possible"],["skip","Skip"],["all","All"]];
+  const tiers = [["strong","Strong"],["possible","Possible"],["skip","Skip"],["all","All"],["recent","Recent"]];
   document.getElementById("filters").innerHTML = tiers.map(([k,label])=>
     `<button class="pill ${FILTER===k?'active':''}" onclick="setFilter('${k}')">${label}<b>${c[k]||0}</b></button>`).join("");
   const searched = searchedJobs();
-  let rows = searched.filter(j=>FILTER==="all"||j.tier===FILTER);
+  let rows = searched.filter(j=> FILTER==="all" ? true : FILTER==="recent" ? isRecent(j) : j.tier===FILTER);
   const list = document.getElementById("list");
   if(!rows.length){
     list.innerHTML = '<div class="empty">'+emptyMessage(searched)+'</div>';
@@ -731,6 +736,7 @@ function emptyMessage(searched){
     if(JOBS.some(j=>!verified(j))) return 'No verified strong matches yet.<br>Use <b>Rank my matches</b> to read your top roles in full for free.';
     return 'No strong matches in this view.<br>Check the other tabs.';
   }
+  if(FILTER==="recent") return 'No roles first seen in the last 7 days in this view.<br>Check the other tabs, or come back after the next daily scan.';
   return 'No '+FILTER+' roles in this view.<br>Check the other tabs.';
 }
 

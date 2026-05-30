@@ -14,7 +14,7 @@
 
 The engine is **done**. It sources, ranks, drafts outreach, and runs cheap. It found real strong-fit roles and was used to apply to them.
 
-The biggest ongoing lever is **coverage**: the ranking is smart, but it can only rank jobs that make it into the funnel, and the funnel has since grown from ~400 companies on 6 ATS types to ~5,266 companies across 9 job systems. The product shipped as Jobrolu (jobrolu.com); widening coverage continues.
+The biggest ongoing lever is **coverage**: the ranking is smart, but it can only rank jobs that make it into the funnel, and the funnel has since grown from ~400 companies on 6 ATS types to ~7,265 companies across 9 job systems. The product shipped as Jobrolu (jobrolu.com); widening coverage continues.
 
 That's the whole remaining plan. Everything else is polish.
 
@@ -23,7 +23,7 @@ That's the whole remaining plan. Everything else is polish.
 ## The two-stage funnel (why coverage is the lever)
 
 ```
-   ALL pulled roles  ~90,000
+   ALL pulled roles  ~123,000
           |
           |   stage 1 - FREE heuristic score (fast, crude keyword/title match)
           v

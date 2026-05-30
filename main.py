@@ -158,6 +158,9 @@ def run(profile_path="profile.example.json", progress=None, top_n=None, draft=Tr
     for j in jobs:
         j["_id"] = jobcache.job_id(j)
         j["is_new"] = j["_id"] not in cache["seen"]
+        # First date this job entered our pool. Display-only: used for the
+        # "recent" feed filter; never affects scoring, tiers, or sort order.
+        j["first_seen"] = cache["seen"].get(j["_id"]) or jobcache.today()
         if j["is_new"]:
             n_new_postings += 1
     emit("Checking for new postings", 70, f"{n_new_postings} brand-new")
