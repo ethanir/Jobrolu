@@ -279,6 +279,28 @@ _DISC_EDUCATION_RX = re.compile(
     r"\bteacher\b|\bprofessor\b|\binstructor\b|\blecturer\b|\beducator\b|teaching|"
     r"curriculum (?:developer|specialist)|\btutor\b|academic advisor|school counselor", re.I)
 
+# --- additional common fields, added to shrink the catch-all "other" bucket and
+# sharpen cross-field down-weighting. Kept deliberately specific so they never
+# grab a software, data, or other existing-discipline role by accident. A title
+# that still matches nothing stays unclassified and is never penalized. ---
+_DISC_SUPPORT_RX = re.compile(
+    r"customer (?:service|support|success|experience)|client (?:service|services|success)|"
+    r"\bhelp desk\b|call center|contact center|support (?:specialist|representative|associate|agent)|"
+    r"member services|patient access", re.I)
+_DISC_ADMIN_RX = re.compile(
+    r"administrative (?:assistant|coordinator|specialist|aide)|executive assistant|"
+    r"office (?:manager|coordinator|administrator|assistant)|\breceptionist\b|front desk|"
+    r"data entry|\bsecretary\b|\bclerical\b|file clerk", re.I)
+_DISC_TRADES_RX = re.compile(
+    r"\belectrician\b|\bhvac\b|\bplumber\b|\bwelder\b|\bmachinist\b|\bmillwright\b|\bcarpenter\b|"
+    r"maintenance (?:technician|mechanic|worker|engineer)|(?:field|service|automotive) technician|"
+    r"facilities (?:technician|coordinator|manager)", re.I)
+_DISC_ENGOTHER_RX = re.compile(
+    r"mechanical engineer|civil engineer|chemical engineer|industrial engineer|"
+    r"manufacturing engineer|process engineer|quality engineer|aerospace engineer|"
+    r"structural engineer|environmental engineer|biomedical engineer|materials engineer|"
+    r"petroleum engineer", re.I)
+
 _DISC_NAMES = {
     "analytics": "data analytics", "design": "design", "eng": "software engineering",
     "hardware": "hardware", "ml_ds": "data science / ML", "product": "product management",
@@ -286,6 +308,8 @@ _DISC_NAMES = {
     "sales": "sales / business development", "hr": "HR / recruiting",
     "operations": "operations", "legal": "legal", "healthcare": "healthcare",
     "education": "education",
+    "support": "customer support", "admin": "administrative",
+    "trades": "skilled trades", "eng_other": "engineering (other)",
 }
 
 
@@ -332,6 +356,14 @@ def role_disciplines(text):
         d.add("healthcare")
     if _DISC_EDUCATION_RX.search(t):
         d.add("education")
+    if _DISC_SUPPORT_RX.search(t):
+        d.add("support")
+    if _DISC_ADMIN_RX.search(t):
+        d.add("admin")
+    if _DISC_TRADES_RX.search(t):
+        d.add("trades")
+    if _DISC_ENGOTHER_RX.search(t):
+        d.add("eng_other")
     return frozenset(d)
 
 
