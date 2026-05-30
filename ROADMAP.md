@@ -20,10 +20,25 @@ That's the whole remaining plan. Everything else is polish.
 
 ---
 
+## Now: post-launch focus
+
+Launched and in daily use. Recent and current work, newest first:
+
+- **Mobile UX (in progress, top priority).** The desktop feed is solid; the phone layout needs a real pass. The detail panel was unreachable on tap (first fix shipped); the header and general polish come next. Most job seekers are on phones, so this is the highest-value fix right now.
+- **Two-phase feed (shipped).** First load scores your field-relevant matches in seconds, then fills the rest of the pool from a background thread, so a new account sees matches in about 30 seconds instead of minutes.
+- **Cross-field matching (validated).** A dozen real resumes across fields confirm each field's own roles rise while off-field roles sink. The engine is field-agnostic.
+- **Coverage strategy (researched, decided): free only.** Indeed and LinkedIn have closed their job-search APIs; paid aggregators run roughly $800 a month and mostly resell thin, duplicate listings. The clean ATS platforms we already crawl (Greenhouse alone has 7,500-plus companies) still have thousands more boards to add for $0 with full descriptions. Expand those; do not pay for data.
+- **Competitive position (honest).** Rivals like Jobright and Sorce carry 5 to 8 million listings; we do not, and we never claim to win on count. We win on judgment: every role read in full, ranked to fit, the person applies themselves, every field, fit verifiable free with their own AI. That is the opposite of the auto-apply spray the market is turning against.
+- **Shelved on purpose.** A paste-in or browser-extension job analyzer (low signal from search-page pastes, plus legal risk in re-posting listings). Build only if real users ask.
+
+The real lever remains users, not more features. One real user's feedback beats another build.
+
+---
+
 ## The two-stage funnel (why coverage is the lever)
 
 ```
-   ALL pulled roles  ~123,000
+   ALL pulled roles  ~126,000
           |
           |   stage 1 - FREE heuristic score (fast, crude keyword/title match)
           v

@@ -105,7 +105,8 @@
   .lg.new b{color:var(--amber)}
   /* layout */
   main{display:grid;grid-template-columns:minmax(320px,1fr) minmax(420px,1.25fr);gap:26px;padding:26px 0 60px;align-items:start}
-  @media(max-width:880px){main{grid-template-columns:1fr}}
+  @media(max-width:880px){main{grid-template-columns:1fr}.detail{position:static;max-height:none;overflow:visible}}
+  @media(max-width:560px){.wrap{padding:0 16px}}
   .filters{display:flex;gap:9px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .filters::-webkit-scrollbar{display:none}
   .toolbar{display:flex;flex-direction:column;gap:11px;margin-bottom:16px}
@@ -890,7 +891,16 @@ function personalize(id){
   if(b) b.textContent = bodyT.replace(/{{NAME}}/g,nm);
 }
 function copyEl(id,btn){const el=document.getElementById(id);if(!el)return;copy(el.textContent);const b=document.getElementById(btn);b.classList.add("done");b.innerHTML=check();toast("Copied");setTimeout(()=>{b.classList.remove("done");b.innerHTML=clip();},1500);}
-function select(id){SELECTED=id;render();}
+function select(id){
+  SELECTED=id;
+  render();
+  // On phones the detail renders below the list, so bring it into view on tap;
+  // otherwise tapping a job appears to do nothing. Offset clears the sticky header.
+  if(window.innerWidth<=880){
+    const d=document.getElementById("detailWrap");
+    if(d){ const y=d.getBoundingClientRect().top+window.pageYOffset-78; window.scrollTo({top:y,behavior:"smooth"}); }
+  }
+}
 function setFilter(f){FILTER=f;SELECTED=null;PAGE=1;render();}
 function showMore(){PAGE++;render();}
 function esc(s){return (s==null?"":""+s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
