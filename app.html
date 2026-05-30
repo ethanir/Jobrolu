@@ -188,6 +188,9 @@
   .fl-spinner{width:44px;height:44px;border-radius:50%;border:3.5px solid var(--line2);border-top-color:var(--green);animation:spin .8s linear infinite;box-shadow:0 0 0 7px rgba(79,227,155,.05)}
   .fl-title{font-family:var(--fd);font-size:21px;font-weight:600;color:var(--ink);letter-spacing:.01em}
   .fl-sub{font-family:var(--fu);font-size:13.5px;font-weight:600;color:var(--mut);max-width:340px;line-height:1.5}
+  .feedmore{display:none;align-items:center;gap:9px;margin:0 0 14px;padding:9px 13px;border:1px solid var(--line2);border-radius:10px;background:rgba(79,227,155,.05);font-family:var(--fu);font-size:12.5px;font-weight:600;color:var(--mut)}
+  .feedmore.on{display:flex}
+  .fm-dot{width:13px;height:13px;flex:none;border-radius:50%;border:2px solid var(--line2);border-top-color:var(--green);animation:spin .8s linear infinite}
   @media(prefers-reduced-motion:reduce){.fl-spinner{animation-duration:1.6s}}
   @media(prefers-reduced-motion:reduce){.loadbar.on i{animation:none}}
   /* application status: a compact dropdown in the detail's top corner + a small
@@ -326,6 +329,7 @@
 </div>
 <main>
   <section>
+    <div class="feedmore" id="feedMore"><span class="fm-dot"></span>Finding more matches across every field&hellip;</div>
     <div id="rankBannerWrap"></div>
     <div class="toolbar">
       <div class="filters" id="filters"></div>
@@ -399,6 +403,10 @@
 const API = location.origin.startsWith("file") ? "http://localhost:8000" : "";
 let JOBS = [], FILTER = "strong", SELECTED = null, SOURCE = "", RANK_PROMPT = "", SEARCH = "", PAGE = 1;
 const PAGE_SIZE = 60;
+// Two-phase first feed: phase 1 returns the field-relevant matches fast with
+// computing=true, then we poll until the full pool lands (computing=false).
+let COMPUTING = false, POLL_TRIES = 0, FEED_TIMER = null;
+const POLL_MS = 2500, POLL_MAX = 80;   // ceiling ~3.5 min, then we stop quietly
 // Billing / plan state, populated by loadMe() from /api/auth/me.
 let IS_PRO = false, PLAN_NAME = "Pro", PRICE = "$1.99";
 
@@ -416,8 +424,10 @@ function ringColor(j){ if(!verified(j)) return "#7e8a96"; if(j.tier==="strong") 
 
 /* ---------- feed ---------- */
 function showLoading(on){ const lb=document.getElementById("loadbar"); if(lb) lb.classList.toggle("on", !!on); }
+function setFeedMore(on){ const b=document.getElementById("feedMore"); if(b) b.classList.toggle("on", !!on); }
 
 async function loadJobs(){
+  clearTimeout(FEED_TIMER);
   const main = document.querySelector("main");
   const fl = document.getElementById("feedLoading");
   const firstLoad = !JOBS.length;
@@ -437,6 +447,7 @@ async function loadJobs(){
     if(d.needs_profile){ location.replace("/start"); return; }
     JOBS = d.jobs || [];
     SOURCE = d.source || "";
+    COMPUTING = !!d.computing;
     // Land on the first tab that actually has results. A visitor's heuristic
     // feed has no 'strong' roles, so defaulting to the strong tab would look
     // empty; this keeps the default useful for every kind of feed.
@@ -445,14 +456,38 @@ async function loadJobs(){
     updateMeta();
     renderRankBanner();
     render();
-    if(fl) fl.style.display = "none";
-    if(main) main.style.display = "";
+    // Reveal the feed the moment there's anything to show. If the fast pass came
+    // back empty but the full scan is still running, keep the loader up.
+    if(JOBS.length || !COMPUTING){
+      if(fl) fl.style.display = "none";
+      if(main) main.style.display = "";
+    }
     showLoading(false);
+    if(COMPUTING && POLL_TRIES < POLL_MAX){
+      // Your matches are showing; quietly keep pulling the rest of the pool in.
+      POLL_TRIES++;
+      setFeedMore(JOBS.length > 0);
+      FEED_TIMER = setTimeout(loadJobs, POLL_MS);
+    }else{
+      const timedOut = COMPUTING && POLL_TRIES >= POLL_MAX;
+      POLL_TRIES = 0;
+      setFeedMore(false);
+      if(timedOut && !JOBS.length){
+        if(fl) fl.style.display = "none";
+        if(main) main.style.display = "";
+        document.getElementById("list").innerHTML = '<div class="empty">This took longer than usual, or the connection dropped.<br>Some matches may have saved; reopen the page in a moment to check.</div>';
+      }
+    }
   }catch(e){
     showLoading(false);
+    clearTimeout(FEED_TIMER);
+    setFeedMore(false);
     if(fl) fl.style.display = "none";
     if(main) main.style.display = "";
-    document.getElementById("list").innerHTML = '<div class="empty">We can\'t reach the server right now.<br>Check your connection and reload in a moment.</div>';
+    // Keep any matches already on screen; only show the hard error with nothing shown.
+    if(!JOBS.length){
+      document.getElementById("list").innerHTML = '<div class="empty">We can\'t reach the server right now.<br>Check your connection and reload in a moment.</div>';
+    }
   }
 }
 

@@ -583,6 +583,30 @@ def rank_free(jobs, profile):
     return jobs
 
 
+def field_relevant_subset(jobs, profile):
+    """The jobs on-target for THIS profile by title or field alone, with NO
+    description read. This is exactly the cheap front half of rank_free's
+    relevance gate (matching title, the user's own field, or the SWE family),
+    so a job in here is one rank_free would also treat as relevant; scoring just
+    these gives the user's real matches fast. Off-field roles that match only via
+    a skill buried in the description are intentionally excluded here and picked
+    up by the full scan afterward, where they only ever become low/skip matches."""
+    titles = [t.lower() for t in (profile.get("target_titles") or [])] or \
+             ["software engineer", "developer", "full stack", "backend"]
+    skills = _flat_skills(profile)
+    user_is_swe = _looks_swe(titles, skills)
+    user_disc = _profile_disciplines(titles, user_is_swe)
+    out = []
+    for j in jobs:
+        title = j.get("title", "") or ""
+        tpts, _ = _title_fit(title, titles)
+        if (tpts > 0
+                or (user_is_swe and bool(SWE_RX.search(title)))
+                or (user_disc and bool(role_disciplines(title) & user_disc))):
+            out.append(j)
+    return out
+
+
 # The free score maps to a 0-100 display. A great match lands high (80s-90s), a
 # solid one mid (55-75), a marginal one low (40-55), and a non-match below 40.
 _POSSIBLE_MIN = 40

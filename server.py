@@ -444,9 +444,22 @@ def _persist_pool():
 # RANK_EXPORT_MAX jobs, so a job a user can verify is always inside this slice;
 # capping it can never hide a verified match.
 BASE_KEEP = 2000                      # most jobs the feed keeps after ranking
-_BASE_CACHE = {}                      # profile-hash -> {"token","jobs"}
+_BASE_CACHE = {}                      # profile-hash -> {"token","jobs"}  (full pool)
 _BASE_LOCK = threading.Lock()
 _BASE_MAX_PROFILES = 12               # bound memory: keep recent profiles only
+
+# First-load speedup: scoring the whole 120k+ pool for a brand-new profile takes
+# tens of seconds, so we score in two phases. Phase 1 scores only the field-
+# relevant roles (the user's real strong/possible matches), which is a few times
+# faster, and returns them right away. Phase 2 scores the full pool in a daemon
+# thread and replaces the cached base when done, so the off-field tail fills in
+# without anyone staring at a blank screen. Both caches are keyed by pool version
+# and bounded; a failed background pass simply leaves the partial in place and is
+# retried on the next request, never corrupting anything.
+_PARTIAL_CACHE = {}                   # profile-hash -> {"token","jobs"}  (phase 1)
+_PARTIAL_MAX = 12
+_FULL_PENDING = set()                 # profile-hashes whose phase-2 thread is live
+_FULL_PENDING_GUARD = threading.Lock()
 
 # Per-profile locks that serialize the heavy scoring. The point is that if several
 # requests for the same profile arrive before the first finishes (a user mashing
@@ -498,37 +511,43 @@ def _profile_hash(profile):
 
 
 def _scored_base(profile):
-    """Return the top BASE_KEEP jobs ranked for this profile, cached by
-    (pool token, profile hash). Each entry is a plain dict carrying the fields
-    the feed and the rank export need, plus the heuristic _score. Recomputed
-    only when the pool or the profile changes."""
+    """Return (jobs, computing): the best-ranked slice for this profile, and a flag
+    that is True while the full pool is still being scored in the background.
+
+    Warm cache: returns the full ranked base instantly, computing=False. Cold
+    profile: computes the fast field-relevant slice (phase 1), starts the full scan
+    in a daemon thread (phase 2), and returns the phase-1 matches with
+    computing=True. The caller polls and gets the full base once phase 2 lands."""
     token = _pool_token()
     key = _profile_hash(profile)
     with _BASE_LOCK:
-        hit = _BASE_CACHE.get(key)
-        if hit and hit["token"] == token:
-            return hit["jobs"]
-    # Serialize the heavy scoring per profile so refreshing can never pile up:
-    # only the first request computes, the rest wait here and return its result.
-    with _compute_lock(key):
-        with _BASE_LOCK:                    # re-check: someone may have just done it
-            hit = _BASE_CACHE.get(key)
-            if hit and hit["token"] == token:
-                return hit["jobs"]
-        return _compute_scored_base(profile, token, key)
+        full = _BASE_CACHE.get(key)
+        if full and full["token"] == token:
+            return full["jobs"], False
+        part = _PARTIAL_CACHE.get(key)
+        partial = part["jobs"] if (part and part["token"] == token) else None
+    if partial is None:
+        # Compute the fast partial once; concurrent first-hits wait on the lock and
+        # then read the cached result rather than all scoring the pool at once.
+        with _compute_lock(key):
+            with _BASE_LOCK:                # re-check: someone may have just done it
+                full = _BASE_CACHE.get(key)
+                if full and full["token"] == token:
+                    return full["jobs"], False
+                part = _PARTIAL_CACHE.get(key)
+                partial = part["jobs"] if (part and part["token"] == token) else None
+            if partial is None:
+                partial = _compute_partial_base(profile, token, key)
+    _start_full_compute(profile, token, key)
+    return partial, True
 
 
-def _compute_scored_base(profile, token, key):
-    """Heavy path, run only while holding the per-profile compute lock: score the
-    whole pool for this profile, keep the top BASE_KEEP, cache them in memory, and
-    return them. Runs at most once per profile per pool version."""
-    import score
-    pool = _raw_pool()          # shallow copies, safe for the scorer to mutate
-    if not pool:
-        return []
-    score.rank_free(pool, profile)      # sets _score/_matched, sorts best-first
+def _shape_top(scored_jobs):
+    """Shape the already-scored, best-first jobs into the cached base slice (the
+    exact fields the feed and the BYO rank export consume). Used by BOTH the
+    phase-1 and phase-2 computes, so the two are always byte-for-byte consistent."""
     base = []
-    for j in pool[:BASE_KEEP]:
+    for j in scored_jobs[:BASE_KEEP]:
         base.append({
             "id": db.job_hash(j),
             "company": j.get("company", "") or "",
@@ -545,11 +564,69 @@ def _compute_scored_base(profile, token, key):
             "_why": j.get("_why", []),
             "_flags": j.get("_flags", []),
         })
+    return base
+
+
+def _compute_partial_base(profile, token, key):
+    """Phase 1: score ONLY the field-relevant roles (a few times faster than the
+    whole pool) and cache them as the partial base. Scores are per-job and identical
+    to the full pass, so the full base never reshuffles what phase 1 showed; it only
+    appends lower-ranked off-field roles."""
+    import score
+    pool = _raw_pool()
+    if not pool:
+        return []
+    rel = score.field_relevant_subset(pool, profile)
+    score.rank_free(rel, profile)       # sets _score/_matched, sorts best-first
+    base = _shape_top(rel)
+    with _BASE_LOCK:
+        if len(_PARTIAL_CACHE) >= _PARTIAL_MAX and key not in _PARTIAL_CACHE:
+            _PARTIAL_CACHE.pop(next(iter(_PARTIAL_CACHE)), None)
+        _PARTIAL_CACHE[key] = {"token": token, "jobs": base}
+    return base
+
+
+def _start_full_compute(profile, token, key):
+    """Kick off phase 2 (full-pool scoring) in a daemon thread, at most one per
+    profile. On completion it caches the full base; on failure it only clears its
+    pending flag, leaving the partial in place to be retried on the next request."""
+    with _FULL_PENDING_GUARD:
+        if key in _FULL_PENDING:
+            return
+        _FULL_PENDING.add(key)
+
+    def _work():
+        try:
+            with _compute_lock(key):
+                with _BASE_LOCK:
+                    full = _BASE_CACHE.get(key)
+                    if full and full["token"] == token:
+                        return
+                _compute_scored_base(profile, token, key)
+        except Exception:
+            pass
+        finally:
+            with _FULL_PENDING_GUARD:
+                _FULL_PENDING.discard(key)
+
+    threading.Thread(target=_work, name="scorefull", daemon=True).start()
+
+
+def _compute_scored_base(profile, token, key):
+    """Phase 2 heavy path (also the path the owner's Refresh uses): score the whole
+    pool for this profile, keep the top BASE_KEEP, cache them, and return them."""
+    import score
+    pool = _raw_pool()          # shallow copies, safe for the scorer to mutate
+    if not pool:
+        return []
+    score.rank_free(pool, profile)      # sets _score/_matched, sorts best-first
+    base = _shape_top(pool)
     with _BASE_LOCK:
         if len(_BASE_CACHE) >= _BASE_MAX_PROFILES and key not in _BASE_CACHE:
             # evict an arbitrary existing entry to stay bounded
             _BASE_CACHE.pop(next(iter(_BASE_CACHE)), None)
         _BASE_CACHE[key] = {"token": token, "jobs": base}
+    return base
     return base
 
 
@@ -658,9 +735,14 @@ def _visitor_feed(user_id, profile, tier):
     overlaid fresh on top. The heuristic never awards 'strong' (only a real AI
     ranking can), so unverified jobs show as estimates in the UI."""
     import score
-    base = _scored_base(profile)
+    base, computing = _scored_base(profile)
     if not base:
-        return _from_file(), "file"
+        # Empty while still scanning: return nothing yet so the app keeps the
+        # loader and polls; empty when done means no personalized matches, so
+        # fall back to the shared sample.
+        if computing:
+            return [], "heuristic", True
+        return _from_file(), "file", False
     overlay = {}
     statusmap = {}
     if db.has_db():
@@ -696,6 +778,7 @@ def _visitor_feed(user_id, profile, tier):
             "source": j["source"],
             "fit": fit,
             "is_new": j["is_new"],
+            "first_seen": j.get("first_seen", "") or "",
             "date_posted": j.get("date_posted"),
             "status": statusmap.get(jid, ""),
         }))
@@ -703,7 +786,7 @@ def _visitor_feed(user_id, profile, tier):
     out.sort(key=lambda x: (order.get(x["tier"], 3), -(x["score"] or 0)))
     if tier and tier != "all":
         out = [j for j in out if j["tier"] == tier]
-    return out, "heuristic"
+    return out, "heuristic", computing
 
 
 # ---------------------------------------------------------------- routes
@@ -862,12 +945,13 @@ def list_jobs(request: Request, tier: str = "all"):
     if not prof:
         return {"source": "none", "count": 0, "jobs": [], "needs_auth": False, "needs_profile": True}
     try:
-        data, source = _visitor_feed(user_id, prof, tier)
+        data, source, computing = _visitor_feed(user_id, prof, tier)
     except Exception:
         # A malformed profile should never leak another feed; show an empty
         # personalized feed rather than the shared sample.
-        data, source = [], "heuristic"
-    return {"source": source, "count": len(data), "jobs": data, "needs_auth": False, "needs_profile": False}
+        data, source, computing = [], "heuristic", False
+    return {"source": source, "count": len(data), "jobs": data,
+            "needs_auth": False, "needs_profile": False, "computing": computing}
 
 
 @app.get("/api/jobs/{job_id}")
@@ -1564,7 +1648,7 @@ def _rank_candidates(user_id, profile, limit, desc_chars=RANK_DESC_CHARS):
         desc_chars = max(200, min(int(desc_chars), 8000))
     except Exception:
         desc_chars = RANK_DESC_CHARS
-    base = _scored_base(profile)
+    base, _ = _scored_base(profile)
     if not base:
         return []
     # id -> full description, straight from the pool (read-only; no copy).
