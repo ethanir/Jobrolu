@@ -14,6 +14,7 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from prompts import FIT_RANKING, PROFILE_SCHEMA  # noqa: F401
+import sources
 
 MODEL = "claude-sonnet-4-6"  # swap as needed
 
@@ -28,16 +29,26 @@ def _rank_one(client, profile_json, job):
     )
     msg = client.messages.create(
         model=MODEL,
-        max_tokens=600,
+        max_tokens=750,
         messages=[{"role": "user", "content": prompt}],
     )
     text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
     text = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     try:
-        return json.loads(text)
+        fit = json.loads(text)
     except json.JSONDecodeError:
         return {"score": None, "tier": "unknown", "reasons": ["could not parse model output"],
                 "hard_disqualifiers": [], "matched_skills": [], "missing_skills": []}
+    # Normalize the salary/dates the model read from the posting. Bounded and validated
+    # in sources; any unusable value is dropped, so this never affects the score or tier.
+    try:
+        sal = sources.salary_from_ai(fit.get("salary"))
+        fit["salary"] = sal if sal else None
+        fit["posted_ts"] = sources.ai_posted_ts(fit.get("posted_date"))
+        fit["close"] = sources.ai_close_date(fit.get("close_date"))
+    except Exception:
+        pass
+    return fit
 
 
 def run(jobs, profile):

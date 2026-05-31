@@ -105,10 +105,15 @@ CREATE TABLE IF NOT EXISTS rankings (
     reasons     JSONB,
     matched     JSONB,
     missing     JSONB,
+    extra       JSONB,
     ranked_by   TEXT,
     ranked_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (user_id, job_id)
 );
+
+-- Migrate older deployments: salary and dates an AI reads from a posting ride here,
+-- a single nullable JSONB so no other ranking column or behavior changes.
+ALTER TABLE rankings ADD COLUMN IF NOT EXISTS extra JSONB;
 
 CREATE INDEX IF NOT EXISTS rankings_user_tier_idx
     ON rankings (user_id, tier);
@@ -464,7 +469,7 @@ def fetch_ranked(conn, user_id: str):
     with conn.cursor() as cur:
         cur.execute(
             "SELECT job_id AS id, company, title, location, source, "
-            "       tier, score, reasons, matched, missing, ranked_by "
+            "       tier, score, reasons, matched, missing, ranked_by, extra "
             "FROM rankings WHERE user_id = %s "
             "ORDER BY "
             "  CASE tier WHEN 'strong' THEN 0 "
@@ -496,11 +501,12 @@ def get_rankings_map(conn, user_id: str) -> dict:
     out = {}
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT job_id, tier, score, reasons, matched, missing, ranked_by "
+            "SELECT job_id, tier, score, reasons, matched, missing, ranked_by, extra "
             "FROM rankings WHERE user_id = %s",
             (user_id,),
         )
         for r in cur.fetchall():
+            ex = r["extra"] or {}
             out[r["job_id"]] = {
                 "tier": r["tier"],
                 "score": r["score"],
@@ -508,6 +514,9 @@ def get_rankings_map(conn, user_id: str) -> dict:
                 "matched_skills": r["matched"] or [],
                 "missing_skills": r["missing"] or [],
                 "ranked_by": r["ranked_by"],
+                "salary": ex.get("salary"),
+                "posted_ts": ex.get("posted_ts"),
+                "close": ex.get("close"),
             }
     return out
 
@@ -524,12 +533,15 @@ def save_ranking(conn, user_id: str, job: dict, fit: dict, ranked_by: str) -> No
     if not conn or not user_id or not fit:
         return
     jid = job.get("id") or job.get("_id") or job_hash(job)
+    _extra = {k: v for k, v in (("salary", fit.get("salary")),
+                                ("posted_ts", fit.get("posted_ts")),
+                                ("close", fit.get("close"))) if v}
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO rankings ("
             "  user_id, job_id, company, title, location, source, "
-            "  tier, score, reasons, matched, missing, ranked_by"
-            ") VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+            "  tier, score, reasons, matched, missing, ranked_by, extra"
+            ") VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT (user_id, job_id) DO UPDATE SET "
             "  company   = EXCLUDED.company, "
             "  title     = EXCLUDED.title, "
@@ -540,6 +552,7 @@ def save_ranking(conn, user_id: str, job: dict, fit: dict, ranked_by: str) -> No
             "  reasons   = EXCLUDED.reasons, "
             "  matched   = EXCLUDED.matched, "
             "  missing   = EXCLUDED.missing, "
+            "  extra     = EXCLUDED.extra, "
             "  ranked_by = EXCLUDED.ranked_by, "
             "  ranked_at = NOW()",
             (
@@ -551,6 +564,7 @@ def save_ranking(conn, user_id: str, job: dict, fit: dict, ranked_by: str) -> No
                 Json(fit.get("matched_skills") or []),
                 Json(fit.get("missing_skills") or []),
                 ranked_by,
+                Json(_extra) if _extra else None,
             ),
         )
     conn.commit()

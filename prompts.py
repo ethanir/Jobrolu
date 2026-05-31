@@ -92,6 +92,10 @@ Score 0-100 using this rubric:
 - Sponsorship: if the role does not sponsor and the candidate needs it, disqualify
 - If the posting has little or no description, score from the title and note that the
   detail was limited rather than guessing.
+- For salary, posted_date, and close_date: report them ONLY if the description states
+  them outright; never estimate or guess, and use null when the posting does not say.
+  Salary is yearly unless the posting says hourly (period "hour"); ignore sign-on
+  bonuses, equity, and relocation. Dates are YYYY-MM-DD.
 
 Return ONLY JSON in this shape:
 {{
@@ -100,7 +104,10 @@ Return ONLY JSON in this shape:
   "reasons": ["short bullet", "short bullet"],
   "hard_disqualifiers": ["..."],
   "matched_skills": ["..."],
-  "missing_skills": ["..."]
+  "missing_skills": ["..."],
+  "salary": {{"min": null, "max": null, "period": "year"}},
+  "posted_date": null,
+  "close_date": null
 }}
 
 CANDIDATE PROFILE:

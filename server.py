@@ -644,6 +644,9 @@ def _shape(job):
     fit = job.get("fit") or {}
     pts = job.get("date_posted")
     posted_ts = int(pts) if isinstance(pts, (int, float)) and pts else None
+    if posted_ts is None:
+        fpts = fit.get("posted_ts")
+        posted_ts = int(fpts) if isinstance(fpts, (int, float)) and fpts else None
     return {
         "id": job.get("id") or db.job_hash(job),
         "company": job.get("company", ""),
@@ -670,7 +673,8 @@ def _shape(job):
         "first_seen": job.get("first_seen", "") or "",
         "status": job.get("status", "") or "",
         "posted_ts": posted_ts,
-        "salary": job.get("salary"),
+        "salary": job.get("salary") or fit.get("salary"),
+        "closes": job.get("close") or fit.get("close"),
     }
 
 
@@ -694,12 +698,16 @@ def _from_db(user_id, tier):
             return None
         out = []
         for r in rows:
+            ex = r.get("extra") or {}
             out.append(_shape({
                 "id": r["id"], "company": r["company"], "title": r["title"],
                 "location": r["location"], "source": r["source"],
                 "tier": r["tier"], "score": r["score"],
                 "reasons": r["reasons"] or [], "matched": r["matched"] or [],
                 "missing": r["missing"] or [],
+                "salary": ex.get("salary"),
+                "close": ex.get("close"),
+                "date_posted": ex.get("posted_ts"),
             }))
         return out
 
@@ -777,7 +785,9 @@ def _visitor_feed(user_id, profile, tier):
             fit = {"tier": f.get("tier"), "score": f.get("score"),
                    "reasons": f.get("reasons") or [],
                    "matched_skills": f.get("matched_skills") or [],
-                   "missing_skills": f.get("missing_skills") or []}
+                   "missing_skills": f.get("missing_skills") or [],
+                   "salary": f.get("salary"), "posted_ts": f.get("posted_ts"),
+                   "close": f.get("close")}
         else:
             fit = score.heuristic_fit(j)
         out.append(_shape({
@@ -1886,7 +1896,14 @@ def _build_rank_prompt(profile, jobs):
         "Return ONLY a JSON array, one object per job, in this exact shape, and "
         "nothing else:",
         '[{"id": "<the id shown>", "score": 0-100, "tier": "strong|possible|skip", '
-        '"reasons": ["one short reason"], "matched_skills": ["up to 3"], "missing_skills": ["up to 3"]}]',
+        '"reasons": ["one short reason"], "matched_skills": ["up to 3"], '
+        '"missing_skills": ["up to 3"], "salary": {"min": null, "max": null, '
+        '"period": "year"}, "posted_date": null, "close_date": null}]',
+        "",
+        "For salary, posted_date, and close_date: copy them ONLY if the description "
+        "states them outright; never estimate or guess, and use null when the posting "
+        "does not say. Salary is yearly unless the posting says hourly (then period is "
+        "\"hour\"); ignore sign-on bonuses, equity, and relocation. Dates are YYYY-MM-DD.",
         "",
         "Keep it compact so you can finish every job: ONE short reason and at most "
         "3 skills each. Score every job in the list, in order. Keep the id exactly "
@@ -2007,13 +2024,29 @@ def _sanitize_fit(r):
     except (TypeError, ValueError):
         score_val = 0
     score_val = max(0, min(100, score_val))
-    return {
+    fit = {
         "tier": tier,
         "score": score_val,
         "reasons": _clean_str_list(r.get("reasons"), 8, 300),
         "matched_skills": _clean_str_list(r.get("matched_skills"), 30, 60),
         "missing_skills": _clean_str_list(r.get("missing_skills"), 30, 60),
     }
+    # Salary and dates the AI read from the posting. Bounded and validated in sources;
+    # any missing or unusable value is simply left off, so this never affects scoring.
+    try:
+        import sources
+        sal = sources.salary_from_ai(r.get("salary"))
+        if sal:
+            fit["salary"] = sal
+        pts = sources.ai_posted_ts(r.get("posted_date"))
+        if pts:
+            fit["posted_ts"] = pts
+        cd = sources.ai_close_date(r.get("close_date"))
+        if cd:
+            fit["close"] = cd
+    except Exception:
+        pass
+    return fit
 
 
 @app.get("/api/rank/byo")

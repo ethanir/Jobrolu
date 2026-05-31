@@ -890,6 +890,18 @@ function salaryHtml(j){
   const t = salaryText(j);
   return t ? ('<span>\u00b7</span><span class="sal">' + esc(t) + '</span>') : "";
 }
+/* Close/deadline date for the detail panel, or "" when there's none or it's past.
+   j.closes is a YYYY-MM-DD the AI read from the posting; shown only when present. */
+function closesText(j){
+  const c = j.closes;
+  if(!c) return "";
+  const t = Date.parse(c + "T00:00:00Z");
+  if(isNaN(t)) return "";
+  if(Math.floor((t - Date.now())/86400000) < -1) return "";   // already closed
+  const d = new Date(t);
+  const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getUTCMonth()];
+  return "closes " + m + " " + d.getUTCDate();
+}
 
 function statusControl(j){
   const s=j.status||"";
@@ -935,7 +947,7 @@ function renderDetail(j){
       <div>
         <div class="d-co">${esc(j.company)}</div>
         <h1 class="d-ti">${esc(j.title)}</h1>
-        <div class="d-loc"><span>${esc(j.location||"Location N/A")}</span><span>·</span><span style="text-transform:capitalize">${esc(j.source)}</span><span>·</span><span class="vchip ${verified(j)?'ok':'est'}">${verified(j)?'AI verified':'Estimate only'}</span>${pa?`<span>·</span><span class="d-posted">${esc(pa)}</span>`:""}${salaryText(j)?`<span>·</span><span class="d-sal">${esc(salaryText(j))}</span>`:""}</div>
+        <div class="d-loc"><span>${esc(j.location||"Location N/A")}</span><span>·</span><span style="text-transform:capitalize">${esc(j.source)}</span><span>·</span><span class="vchip ${verified(j)?'ok':'est'}">${verified(j)?'AI verified':'Estimate only'}</span>${pa?`<span>·</span><span class="d-posted">${esc(pa)}</span>`:""}${salaryText(j)?`<span>·</span><span class="d-sal">${esc(salaryText(j))}</span>`:""}${closesText(j)?`<span>·</span><span class="d-sal">${esc(closesText(j))}</span>`:""}</div>
       </div>
       <div class="d-right">
         ${statusControl(j)}

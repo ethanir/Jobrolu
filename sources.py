@@ -109,6 +109,61 @@ def _salary_from_text(text):
     return None
 
 
+# --- normalizers for salary/dates an AI returns from a posting -------------------
+# Both the owner ranker (rank.py) and the bring-your-own-AI import (server.py) read
+# salary and dates out of the description the model is already given. These bound and
+# validate that output so a malformed or hallucinated value is dropped, not shown.
+def salary_from_ai(v):
+    """Normalize a salary an AI returned (a {min,max,period[,currency]} dict, or a
+    text range) into the salary dict the UI reads, or None. Bounds-checked, so a
+    nonsense or out-of-range figure is dropped. From the posting text, never estimated."""
+    if v is None:
+        return None
+    if isinstance(v, str):
+        return _salary_from_text(v)
+    if not isinstance(v, dict):
+        return None
+    period = str(v.get("period") or "year").lower()
+    period = "hour" if ("hour" in period or period == "hr") else "year"
+    s = _salary(v.get("min"), v.get("max"), v.get("currency") or "USD", period, estimated=False)
+    if not s:
+        return None
+    lo, hi = s["min"], s["max"]
+    if s["period"] == "hour":
+        if not (5 <= lo <= 500 and 5 <= hi <= 500):
+            return None
+    elif not (10000 <= lo <= 5000000 and 10000 <= hi <= 5000000):
+        return None
+    return s
+
+
+def ai_posted_ts(s):
+    """An ISO date (YYYY-MM-DD) an AI read from a posting to epoch seconds, or None.
+    Used to fill a posting-age label only when the source itself gave no date."""
+    if not isinstance(s, str):
+        return None
+    try:
+        import datetime
+        d = datetime.datetime.strptime(s.strip()[:10], "%Y-%m-%d")
+        return int(d.replace(tzinfo=datetime.timezone.utc).timestamp())
+    except Exception:
+        return None
+
+
+def ai_close_date(s):
+    """Validate an ISO close/deadline date (YYYY-MM-DD) an AI read, returning it
+    unchanged or None. Kept as a short string for compact display."""
+    if not isinstance(s, str):
+        return None
+    try:
+        import datetime
+        v = s.strip()[:10]
+        datetime.datetime.strptime(v, "%Y-%m-%d")
+        return v
+    except Exception:
+        return None
+
+
 def _norm(source, company, title, location, url, description, date_posted, ats, token, salary=None):
     d = {"source": source, "company": company, "title": title, "location": location,
          "url": url, "description": description, "date_posted": date_posted,
