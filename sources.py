@@ -201,6 +201,39 @@ def _salary(mn, mx, currency="USD", period="year", estimated=False):
             "period": (period or "year"), "estimated": bool(estimated)}
 
 
+def _salary_from_comp_summary(s):
+    """Parse an Ashby compensation summary string into a salary dict, or None.
+    Examples: '$75K - $125K \u2022 Offers Equity', 'Estimated Base Range $90K - $120K',
+    '$160,000 - $175,000'. This is a dedicated employer comp field, so it is parsed
+    directly; anything after a bullet (equity/bonus) is dropped first. Bounds-checked."""
+    if not isinstance(s, str) or not s.strip():
+        return None
+    head = re.split(r"[\u2022\u00b7]", s)[0]            # drop "\u2022 Offers Equity" etc.
+    low = head.lower()
+    period = "hour" if ("/hr" in low or "/ hr" in low or "hour" in low or "hourly" in low) else "year"
+    cleaned = re.sub(r"(?i)\s*(?:/\s?(?:hr|hour|yr|year)|per\s+(?:hour|year)|usd|annually|annual)\b", " ", head)
+    m = re.search(
+        r"\$\s?(\d[\d,]*(?:\.\d+)?)\s?([kK])?\s*(?:-|\u2013|\u2014|to)\s*\$?\s?(\d[\d,]*(?:\.\d+)?)\s?([kK])?",
+        cleaned)
+    if not m:
+        return None
+
+    def _v(num, k):
+        n = float(num.replace(",", ""))
+        return n * 1000 if (k and k.lower() == "k") else n
+
+    out = _salary(_v(m.group(1), m.group(2)), _v(m.group(3), m.group(4)), "USD", period, estimated=False)
+    if not out:
+        return None
+    lo, hi = out["min"], out["max"]
+    if out["period"] == "hour":
+        if not (5 <= lo <= 500 and 5 <= hi <= 500):
+            return None
+    elif not (10000 <= lo <= 5000000 and 10000 <= hi <= 5000000):
+        return None
+    return out
+
+
 def _ashby_salary(comp):
     """Pull employer-stated pay from an Ashby posting's compensation object. Ashby
     returns a structured breakdown (compensationTiers -> components); boards that do
@@ -221,6 +254,13 @@ def _ashby_salary(comp):
                             c.get("currencyCode") or "USD", period, estimated=False)
                 if s:
                     return s
+    # Fall back to Ashby's own summary strings, which many boards populate even when the
+    # granular compensationTiers are not exposed. scrapeable... is the clean salary-only
+    # field; the display summary (may carry "\u2022 Offers Equity") is the backup.
+    for key in ("scrapeableCompensationSalarySummary", "compensationTierSummary"):
+        s = _salary_from_comp_summary(comp.get(key))
+        if s:
+            return s
     return None
 
 
